@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tukkan - Clear Storage</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: #fff;
+        }
+        button {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #c82333;
+        }
+        .success {
+            background-color: #28a745;
+        }
+        .success:hover {
+            background-color: #218838;
+        }
+        .info {
+            background-color: #2a2a2a;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧹 Tukkan - Storage Cleaner</h1>
+    
+    <div class="info">
+        <h3>Current Storage Status:</h3>
+        <div id="status"></div>
+    </div>
+    
+    <h3>Clear Options:</h3>
+    <button onclick="clearSpecificData()">Clear Tukkan Data Only</button>
+    <button onclick="clearAllStorage()">Clear All localStorage</button>
+    <button onclick="checkStatus()">Refresh Status</button>
+    
+    <div class="status" id="result"></div>
+    
+    <script>
+        const tukkanKeys = [
+            'tukkan-acik-borclar',
+            'tukkan-beklenen-odemeler', 
+            'tukkan-calisanlar',
+            'tukkan-planned-payments',
+            'tukkan-gundem-posts'
+        ];
+        
+        function checkStatus() {
+            const statusDiv = document.getElementById('status');
+            let html = '';
+            
+            tukkanKeys.forEach(key => {
+                const data = localStorage.getItem(key);
+                if (data) {
+                    try {
+                        const parsed = JSON.parse(data);
+                        const count = Array.isArray(parsed) ? parsed.length : 'N/A';
+                        html += `<div>✅ <strong>${key}</strong>: ${count} items</div>`;
+                    } catch (e) {
+                        html += `<div>✅ <strong>${key}</strong>: Exists (invalid JSON)</div>`;
+                    }
+                } else {
+                    html += `<div>❌ <strong>${key}</strong>: Empty</div>`;
+                }
+            });
+            
+            statusDiv.innerHTML = html;
+        }
+        
+        function clearSpecificData() {
+            let cleared = [];
+            
+            tukkanKeys.forEach(key => {
+                if (localStorage.getItem(key)) {
+                    localStorage.removeItem(key);
+                    cleared.push(key);
+                }
+            });
+            
+            const resultDiv = document.getElementById('result');
+            if (cleared.length > 0) {
+                resultDiv.innerHTML = `<div style="color: #28a745;">✅ Cleared: ${cleared.join(', ')}</div>`;
+            } else {
+                resultDiv.innerHTML = `<div style="color: #ffc107;">⚠️ No Tukkan data found to clear.</div>`;
+            }
+            
+            checkStatus();
+        }
+        
+        function clearAllStorage() {
+            const beforeCount = localStorage.length;
+            localStorage.clear();
+            
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `<div style="color: #28a745;">✅ Cleared all localStorage (${beforeCount} items)</div>`;
+            
+            checkStatus();
+        }
+        
+        // Check status on page load
+        checkStatus();
+    </script>
+</body>
+</html> 

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backend Connection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: #fff;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #4CAF50;
+        }
+        .error {
+            background-color: #f44336;
+        }
+        .loading {
+            background-color: #2196F3;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        pre {
+            background-color: #333;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Tukkan Backend Connection Test</h1>
+    
+    <div id="results"></div>
+    
+    <button onclick="testHealth()">Test Health Endpoint</button>
+    <button onclick="testEmployees()">Test Employees Endpoint</button>
+    <button onclick="testInventory()">Test Inventory Endpoint</button>
+    <button onclick="testAllEndpoints()">Test All Endpoints</button>
+    
+    <script>
+        const BASE_URL = 'http://localhost:5000';
+        
+        function addResult(message, type = 'loading') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+            return div;
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+        
+        async function testEndpoint(name, endpoint) {
+            const resultDiv = addResult(`Testing ${name}...`, 'loading');
+            
+            try {
+                const response = await fetch(`${BASE_URL}${endpoint}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.className = 'test-result success';
+                    resultDiv.innerHTML = `✅ ${name} - SUCCESS<br><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    resultDiv.className = 'test-result error';
+                    resultDiv.innerHTML = `❌ ${name} - ERROR (${response.status})<br><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                }
+            } catch (error) {
+                resultDiv.className = 'test-result error';
+                resultDiv.innerHTML = `❌ ${name} - NETWORK ERROR<br><pre>${error.message}</pre>`;
+            }
+        }
+        
+        function testHealth() {
+            clearResults();
+            testEndpoint('Health Check', '/api/health');
+        }
+        
+        function testEmployees() {
+            clearResults();
+            testEndpoint('Employees', '/api/calisanlar');
+        }
+        
+        function testInventory() {
+            clearResults();
+            testEndpoint('Inventory', '/api/envanter');
+        }
+        
+        async function testAllEndpoints() {
+            clearResults();
+            
+            const endpoints = [
+                ['Health Check', '/api/health'],
+                ['Employees', '/api/calisanlar'],
+                ['Inventory', '/api/envanter'],
+                ['Transactions', '/api/islemler'],
+                ['Open Debts', '/api/acik-borclar'],
+                ['Expected Payments', '/api/beklenen-odemeler'],
+                ['Cash Flow', '/api/nakit-akisi'],
+                ['Agenda Posts', '/api/gundem-posts']
+            ];
+            
+            for (const [name, endpoint] of endpoints) {
+                await testEndpoint(name, endpoint);
+                await new Promise(resolve => setTimeout(resolve, 500)); // Small delay between tests
+            }
+        }
+        
+        // Test health endpoint on page load
+        window.onload = () => {
+            testHealth();
+        };
+    </script>
+</body>
+</html> 
