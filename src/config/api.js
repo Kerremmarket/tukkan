@@ -1,9 +1,14 @@
-// API Configuration
+// API Configuration - Updated for Railway deployment
 const API_BASE_URL = import.meta.env.VITE_API_URL || 
                      import.meta.env.VITE_API_BASE_URL || 
                      (import.meta.env.PROD ? 'https://tukkan-production.up.railway.app' : 'http://localhost:5000');
 
-console.log('API_BASE_URL:', API_BASE_URL); // Debug log
+console.log('Environment check:', {
+  VITE_API_URL: import.meta.env.VITE_API_URL,
+  PROD: import.meta.env.PROD,
+  MODE: import.meta.env.MODE,
+  API_BASE_URL: API_BASE_URL
+}); // Enhanced debug log
 
 export const API_ENDPOINTS = {
   // User endpoints
