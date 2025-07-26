@@ -4,6 +4,7 @@ import UrunAlis from './UrunAlis';
 import Envanter from './Envanter';
 import Islemler from './Islemler';
 import Yonetici from './Yonetici';
+import { API_ENDPOINTS } from '../config/api.js';
 
 function HomeScreen() {
   const [currentPage, setCurrentPage] = useState('home');
@@ -52,7 +53,7 @@ function HomeScreen() {
     }
     
     try {
-      const response = await fetch(`http://localhost:5000/api/beklenen-odemeler/${payment.transaction_id}/odeme`, {
+      const response = await fetch(`${API_ENDPOINTS.BEKLENEN_ODEMELER}/${payment.transaction_id}/odeme`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -131,7 +132,7 @@ function HomeScreen() {
   // Extract the loadOverduePayments function so it can be called from payment handler
   const loadOverduePayments = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/beklenen-odemeler');
+      const response = await fetch(API_ENDPOINTS.BEKLENEN_ODEMELER);
       if (response.ok) {
         const payments = await response.json();
         
@@ -169,7 +170,7 @@ function HomeScreen() {
   useEffect(() => {
     const fetchInventory = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/envanter');
+        const response = await fetch(API_ENDPOINTS.ENVANTER);
         if (response.ok) {
           const data = await response.json();
           // Transform backend data to match frontend format

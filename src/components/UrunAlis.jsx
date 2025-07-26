@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { API_ENDPOINTS } from '../config/api.js';
 
 function UrunAlis({ onBackToHome, onNavigate, inventoryItems, setInventoryItems }) {
   // Form states
@@ -160,7 +161,7 @@ function UrunAlis({ onBackToHome, onNavigate, inventoryItems, setInventoryItems 
         };
 
         try {
-          const response = await fetch('http://localhost:5000/api/urun-alis', {
+          const response = await fetch(API_ENDPOINTS.URUN_ALIS, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -195,7 +196,7 @@ function UrunAlis({ onBackToHome, onNavigate, inventoryItems, setInventoryItems 
         
         // Refresh inventory from backend
         try {
-          const inventoryResponse = await fetch('http://localhost:5000/api/envanter');
+          const inventoryResponse = await fetch(API_ENDPOINTS.ENVANTER);
           if (inventoryResponse.ok) {
             const data = await inventoryResponse.json();
             const formattedData = data.map(item => ({
@@ -899,7 +900,7 @@ function UrunAlis({ onBackToHome, onNavigate, inventoryItems, setInventoryItems 
               <button
                 onClick={async () => {
                   try {
-                    const response = await fetch('http://localhost:5000/api/users/register', {
+                    const response = await fetch(API_ENDPOINTS.REGISTER, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify(newUser)

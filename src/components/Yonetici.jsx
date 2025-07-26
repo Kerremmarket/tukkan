@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_ENDPOINTS } from '../config/api.js';
 
 function Yonetici({ onBackToHome, onNavigate }) {
   // User management states
@@ -86,7 +87,7 @@ function Yonetici({ onBackToHome, onNavigate }) {
   // Function to load açık borçlar from backend
   const loadAcikBorclar = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/acik-borclar');
+      const response = await fetch(API_ENDPOINTS.ACIK_BORCLAR);
       if (response.ok) {
         const data = await response.json();
         // Map backend field names to frontend format
@@ -124,8 +125,8 @@ function Yonetici({ onBackToHome, onNavigate }) {
   // Load beklenen odemeler from backend on component mount and when time simulation changes
   React.useEffect(() => {
     const loadBeklenenOdemeler = async () => {
-      try {
-        const response = await fetch('http://localhost:5000/api/beklenen-odemeler');
+          try {
+      const response = await fetch(API_ENDPOINTS.BEKLENEN_ODEMELER);
         if (response.ok) {
           const data = await response.json();
           setBeklenenOdemeler(data);
@@ -147,7 +148,7 @@ function Yonetici({ onBackToHome, onNavigate }) {
   // Load planned payments from backend
   const loadPlannedPayments = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/planlanan-odemeler');
+      const response = await fetch(API_ENDPOINTS.PLANLANAN_ODEMELER);
       if (response.ok) {
         const data = await response.json();
         setPlannedPayments(data);
@@ -173,7 +174,7 @@ function Yonetici({ onBackToHome, onNavigate }) {
   React.useEffect(() => {
     const loadEmployees = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/calisanlar');
+        const response = await fetch(API_ENDPOINTS.CALISANLAR);
         if (response.ok) {
           const employees = await response.json();
           // Map backend field names to frontend field names
@@ -204,7 +205,7 @@ function Yonetici({ onBackToHome, onNavigate }) {
 
   const handleBorcOdeme = async (id, odemeMiktari) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/acik-borclar/${id}/odeme`, {
+      const response = await fetch(`${API_ENDPOINTS.ACIK_BORCLAR}/${id}/odeme`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -235,7 +236,7 @@ function Yonetici({ onBackToHome, onNavigate }) {
 
   const handleBorcUndo = async (id) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/acik-borclar/${id}/undo`, {
+      const response = await fetch(`${API_ENDPOINTS.ACIK_BORCLAR}/${id}/undo`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -271,7 +272,7 @@ function Yonetici({ onBackToHome, onNavigate }) {
     }
     
     try {
-      const response = await fetch(`http://localhost:5000/api/beklenen-odemeler/${transactionId}/odeme`, {
+      const response = await fetch(`${API_ENDPOINTS.BEKLENEN_ODEMELER}/${transactionId}/odeme`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -286,7 +287,7 @@ function Yonetici({ onBackToHome, onNavigate }) {
         alert(`Ödeme başarılı: ₺${result.paid_amount} - Taksit ${result.installment_no}`);
         
         // Reload the data
-        const refreshResponse = await fetch('http://localhost:5000/api/beklenen-odemeler');
+        const refreshResponse = await fetch(API_ENDPOINTS.BEKLENEN_ODEMELER);
         if (refreshResponse.ok) {
           const refreshedData = await refreshResponse.json();
           setBeklenenOdemeler(refreshedData);
@@ -303,7 +304,7 @@ function Yonetici({ onBackToHome, onNavigate }) {
 
   const handleOdemeUndo = async (transactionId) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/beklenen-odemeler/${transactionId}/undo`, {
+      const response = await fetch(`${API_ENDPOINTS.BEKLENEN_ODEMELER}/${transactionId}/undo`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -315,7 +316,7 @@ function Yonetici({ onBackToHome, onNavigate }) {
         alert(`Ödeme geri alındı: ₺${result.reverted_amount} - Taksit ${result.installment_no}`);
         
         // Reload the data
-        const refreshResponse = await fetch('http://localhost:5000/api/beklenen-odemeler');
+        const refreshResponse = await fetch(API_ENDPOINTS.BEKLENEN_ODEMELER);
         if (refreshResponse.ok) {
           const refreshedData = await refreshResponse.json();
           setBeklenenOdemeler(refreshedData);
@@ -334,7 +335,7 @@ function Yonetici({ onBackToHome, onNavigate }) {
     if (yeniCalisan.ad && yeniCalisan.telefon && yeniCalisan.pozisyon) {
       try {
         // Try to save to backend first
-        const response = await fetch('http://localhost:5000/api/calisanlar', {
+        const response = await fetch(API_ENDPOINTS.CALISANLAR, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -394,8 +395,8 @@ function Yonetici({ onBackToHome, onNavigate }) {
 
   const handleEmployeeDelete = async (id) => {
     if (window.confirm('Bu çalışanı silmek istediğinizden emin misiniz?')) {
-      try {
-        const response = await fetch(`http://localhost:5000/api/calisanlar/${id}`, {
+          try {
+      const response = await fetch(`${API_ENDPOINTS.CALISANLAR}/${id}`, {
           method: 'DELETE'
         });
 
@@ -429,7 +430,7 @@ function Yonetici({ onBackToHome, onNavigate }) {
   // Debt management functions
   const handleAddPlannedPayment = async (debtId, month, year, amount) => {
     try {
-      const response = await fetch('http://localhost:5000/api/planlanan-odemeler', {
+      const response = await fetch(API_ENDPOINTS.PLANLANAN_ODEMELER, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -460,7 +461,7 @@ function Yonetici({ onBackToHome, onNavigate }) {
 
   const handleConfirmPayment = async (paymentId) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/planlanan-odemeler/${paymentId}/confirm`, {
+      const response = await fetch(`${API_ENDPOINTS.PLANLANAN_ODEMELER}/${paymentId}/confirm`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -486,8 +487,8 @@ function Yonetici({ onBackToHome, onNavigate }) {
 
   const handleDeletePlannedPayment = async (paymentId) => {
     if (window.confirm('Bu planlanan ödemeyi silmek istediğinizden emin misiniz?')) {
-      try {
-        const response = await fetch(`http://localhost:5000/api/planlanan-odemeler/${paymentId}`, {
+          try {
+      const response = await fetch(`${API_ENDPOINTS.PLANLANAN_ODEMELER}/${paymentId}`, {
           method: 'DELETE'
         });
 
@@ -1679,14 +1680,14 @@ function Yonetici({ onBackToHome, onNavigate }) {
     const loadFinancialData = async () => {
       try {
         // Load transactions
-        const transactionsResponse = await fetch('http://localhost:5000/api/islemler');
+        const transactionsResponse = await fetch(API_ENDPOINTS.ISLEMLER);
         if (transactionsResponse.ok) {
           const transactionsData = await transactionsResponse.json();
           setTransactions(transactionsData);
         }
         
         // Load inventory
-        const inventoryResponse = await fetch('http://localhost:5000/api/envanter');
+        const inventoryResponse = await fetch(API_ENDPOINTS.ENVANTER);
         if (inventoryResponse.ok) {
           const inventoryData = await inventoryResponse.json();
           setInventory(inventoryData);
@@ -1702,7 +1703,7 @@ function Yonetici({ onBackToHome, onNavigate }) {
   // Function to load cash flow data
   const loadCashFlowData = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/nakit-akisi?year=${cashFlowYear}`);
+              const response = await fetch(`${API_ENDPOINTS.NAKIT_AKISI}?year=${cashFlowYear}`);
       if (response.ok) {
         const data = await response.json();
         setCashFlowData(data);
@@ -1728,7 +1729,7 @@ function Yonetici({ onBackToHome, onNavigate }) {
   // Function to load business metrics cash flow data
   const loadBusinessMetricsCashFlow = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/nakit-akisi?year=${selectedYear}`);
+              const response = await fetch(`${API_ENDPOINTS.NAKIT_AKISI}?year=${selectedYear}`);
       if (response.ok) {
         const data = await response.json();
         setBusinessMetricsCashFlowData(data);
@@ -2924,7 +2925,7 @@ function Yonetici({ onBackToHome, onNavigate }) {
               <button
                 onClick={async () => {
                   try {
-                    const response = await fetch('http://localhost:5000/api/users/register', {
+                                          const response = await fetch(API_ENDPOINTS.REGISTER, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify(newUser)

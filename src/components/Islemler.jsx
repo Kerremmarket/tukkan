@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_ENDPOINTS } from '../config/api.js';
 
 function Islemler({ onBackToHome, onNavigate }) {
   const [salesSearch, setSalesSearch] = useState('');
@@ -105,7 +106,7 @@ function Islemler({ onBackToHome, onNavigate }) {
         setLoading(true);
         
         // Fetch transactions
-        const transactionsResponse = await fetch('http://localhost:5000/api/islemler');
+        const transactionsResponse = await fetch(API_ENDPOINTS.ISLEMLER);
         if (transactionsResponse.ok) {
           const transactionsData = await transactionsResponse.json();
           setTransactions(transactionsData);
@@ -114,7 +115,7 @@ function Islemler({ onBackToHome, onNavigate }) {
         }
         
         // Fetch inventory for profit calculations
-        const inventoryResponse = await fetch('http://localhost:5000/api/envanter');
+        const inventoryResponse = await fetch(API_ENDPOINTS.ENVANTER);
         if (inventoryResponse.ok) {
           const inventoryData = await inventoryResponse.json();
           setInventory(inventoryData);
@@ -760,7 +761,7 @@ function Islemler({ onBackToHome, onNavigate }) {
               <button
                 onClick={async () => {
                   try {
-                    const response = await fetch('http://localhost:5000/api/users/register', {
+                    const response = await fetch(API_ENDPOINTS.REGISTER, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify(newUser)

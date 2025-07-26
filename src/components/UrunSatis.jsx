@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { API_ENDPOINTS } from '../config/api.js';
 
 function UrunSatis({ onBackToHome, onNavigate, inventoryItems, setInventoryItems }) {
   try {
@@ -93,7 +94,7 @@ function UrunSatis({ onBackToHome, onNavigate, inventoryItems, setInventoryItems
   const handleUndoLastTransaction = async () => {
     try {
       // Get the most recent transaction
-      const response = await fetch('http://localhost:5000/api/islemler');
+      const response = await fetch(API_ENDPOINTS.ISLEMLER);
       if (!response.ok) {
         throw new Error('İşlemler yüklenemedi');
       }
@@ -123,7 +124,7 @@ function UrunSatis({ onBackToHome, onNavigate, inventoryItems, setInventoryItems
       if (!window.confirm(confirmMessage)) return;
       
       // Delete the transaction
-      const deleteResponse = await fetch(`http://localhost:5000/api/islemler/${lastTransaction.id}`, {
+      const deleteResponse = await fetch(`${API_ENDPOINTS.ISLEMLER}/${lastTransaction.id}`, {
         method: 'DELETE'
       });
       
@@ -144,7 +145,7 @@ function UrunSatis({ onBackToHome, onNavigate, inventoryItems, setInventoryItems
       
       // Refresh inventory from backend
       try {
-        const inventoryResponse = await fetch('http://localhost:5000/api/envanter');
+        const inventoryResponse = await fetch(API_ENDPOINTS.ENVANTER);
         if (inventoryResponse.ok) {
           const data = await inventoryResponse.json();
           const formattedData = data.map(item => ({
@@ -308,7 +309,7 @@ function UrunSatis({ onBackToHome, onNavigate, inventoryItems, setInventoryItems
 
     // Validate seller name exists in employee database
     try {
-      const response = await fetch(`http://localhost:5000/api/calisanlar/validate/${encodeURIComponent(saticiIsmi)}`);
+      const response = await fetch(`${API_ENDPOINTS.CALISANLAR}/validate/${encodeURIComponent(saticiIsmi)}`);
       if (!response.ok) {
         alert('Satıcı ismi çalışanlar listesinde bulunamadı!\n\nLütfen önce Yönetici → Çalışanlar sekmesinden çalışanları ekleyin.');
         return;
@@ -377,7 +378,7 @@ function UrunSatis({ onBackToHome, onNavigate, inventoryItems, setInventoryItems
         };
 
         try {
-          const response = await fetch('http://localhost:5000/api/urun-satis', {
+          const response = await fetch(API_ENDPOINTS.URUN_SATIS, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -412,7 +413,7 @@ function UrunSatis({ onBackToHome, onNavigate, inventoryItems, setInventoryItems
         
                  // Refresh inventory from backend
          try {
-           const inventoryResponse = await fetch('http://localhost:5000/api/envanter');
+           const inventoryResponse = await fetch(API_ENDPOINTS.ENVANTER);
            if (inventoryResponse.ok) {
              const data = await inventoryResponse.json();
              const formattedData = data.map(item => ({
@@ -1354,7 +1355,7 @@ function UrunSatis({ onBackToHome, onNavigate, inventoryItems, setInventoryItems
               <button
                 onClick={async () => {
                   try {
-                    const response = await fetch('http://localhost:5000/api/users/register', {
+                    const response = await fetch(API_ENDPOINTS.REGISTER, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify(newUser)

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { API_ENDPOINTS } from '../config/api.js';
 
 function Envanter({ onBackToHome, onNavigate, inventoryItems, setInventoryItems }) {
   // Inventory data is now managed by HomeScreen and passed as props
@@ -49,7 +50,7 @@ function Envanter({ onBackToHome, onNavigate, inventoryItems, setInventoryItems 
     // Save to backend
     try {
       const item = updatedItems.find(item => item.id === id);
-      const response = await fetch(`http://localhost:5000/api/envanter/${id}`, {
+      const response = await fetch(`${API_ENDPOINTS.ENVANTER}/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -76,7 +77,7 @@ function Envanter({ onBackToHome, onNavigate, inventoryItems, setInventoryItems 
   const handleReset = async () => {
     if (window.confirm('Envanteri orijinal haline sıfırlamak istediğinizden emin misiniz? Bu işlem geri alınamaz.')) {
       try {
-        const response = await fetch('http://localhost:5000/api/envanter/reset', {
+        const response = await fetch(API_ENDPOINTS.ENVANTER_RESET, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -85,7 +86,7 @@ function Envanter({ onBackToHome, onNavigate, inventoryItems, setInventoryItems 
 
         if (response.ok) {
           // Reload inventory data from backend
-          const inventoryResponse = await fetch('http://localhost:5000/api/envanter');
+          const inventoryResponse = await fetch(API_ENDPOINTS.ENVANTER);
           if (inventoryResponse.ok) {
             const data = await inventoryResponse.json();
             const formattedData = data.map(item => ({
@@ -113,7 +114,7 @@ function Envanter({ onBackToHome, onNavigate, inventoryItems, setInventoryItems 
   // Delete function
   const handleDelete = async (item) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/envanter/${item.id}`, {
+      const response = await fetch(`${API_ENDPOINTS.ENVANTER}/${item.id}`, {
         method: 'DELETE'
       });
 
@@ -763,7 +764,7 @@ function Envanter({ onBackToHome, onNavigate, inventoryItems, setInventoryItems 
               <button
                 onClick={async () => {
                   try {
-                    const response = await fetch('http://localhost:5000/api/users/register', {
+                    const response = await fetch(API_ENDPOINTS.REGISTER, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify(newUser)

@@ -1,7 +1,8 @@
-// API Configuration - Railway Production Setup
+// API Configuration - Railway Production Setup - Updated: 2025-07-26
 const API_BASE_URL = 'https://tukkan-production.up.railway.app';
 
 console.log('Using API URL:', API_BASE_URL);
+console.log('Build timestamp:', new Date().toISOString());
 
 export const API_ENDPOINTS = {
   // User endpoints
