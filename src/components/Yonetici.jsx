@@ -600,6 +600,18 @@ function Yonetici({ onBackToHome, onNavigate }) {
       borc.islemKodu.toLowerCase().includes(acikBorclarSearch.toLowerCase())
     );
 
+    // Sorting for açık borçlar
+    const [borcSort, setBorcSort] = React.useState('none'); // 'kalan', 'toplam', 'none'
+    const sortedBorclar = React.useMemo(() => {
+      const list = [...filteredBorclar];
+      if (borcSort === 'kalan') {
+        list.sort((a, b) => (b.acikBorc || 0) - (a.acikBorc || 0));
+      } else if (borcSort === 'toplam') {
+        list.sort((a, b) => (b.originalBorc || 0) - (a.originalBorc || 0));
+      }
+      return list;
+    }, [filteredBorclar, borcSort]);
+
     const renderAcikBorclarContent = () => (
       <div>
         {/* Search Bar */}
@@ -627,6 +639,26 @@ function Yonetici({ onBackToHome, onNavigate }) {
           padding: '1.5rem',
           boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
         }}>
+          {/* Sort controls */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
+            <select
+              value={borcSort}
+              onChange={(e) => setBorcSort(e.target.value)}
+              style={{
+                padding: '0.5rem',
+                fontSize: '0.9rem',
+                backgroundColor: '#333',
+                color: '#fff',
+                border: '1px solid #555',
+                borderRadius: '8px',
+                minWidth: '180px'
+              }}
+            >
+              <option value="none">Sıralama Yok</option>
+              <option value="kalan">Kalan Borca Göre</option>
+              <option value="toplam">Toplam Borca Göre</option>
+            </select>
+          </div>
           <div style={{ 
             display: 'grid', 
             gridTemplateColumns: '1fr 1fr 1fr 1fr', 
@@ -642,7 +674,7 @@ function Yonetici({ onBackToHome, onNavigate }) {
             <div>Açık Borç</div>
             <div>İşlemler</div>
           </div>
-          {filteredBorclar.map(borc => (
+          {sortedBorclar.map(borc => (
             <div key={borc.id} style={{ 
               display: 'grid', 
               gridTemplateColumns: '1fr 1fr 1fr 1fr', 
@@ -731,6 +763,9 @@ function Yonetici({ onBackToHome, onNavigate }) {
     );
 
     const renderPlannedPaymentsContent = () => {
+      // Local search and sort state for planned payments
+      const [planSearch, setPlanSearch] = React.useState('');
+      const [planSort, setPlanSort] = React.useState('none'); // 'kalan', 'toplam', 'none'
       const currentMonth = getCurrentMonth();
       const currentYear = getCurrentYear();
       
@@ -749,9 +784,65 @@ function Yonetici({ onBackToHome, onNavigate }) {
         return acc;
       }, {});
 
+      // Transform to array and apply search/sort
+      let groups = Object.values(groupedPayments).map(({ debt, payments }) => ({
+        debt,
+        payments
+      }));
+
+      if (planSearch) {
+        const s = planSearch.toLowerCase();
+        groups = groups.filter(g =>
+          g.debt.borcSahibi.toLowerCase().includes(s) ||
+          g.debt.islemKodu.toLowerCase().includes(s)
+        );
+      }
+
+      if (planSort === 'kalan') {
+        groups.sort((a, b) => (b.debt.acikBorc || 0) - (a.debt.acikBorc || 0));
+      } else if (planSort === 'toplam') {
+        groups.sort((a, b) => (b.debt.originalBorc || 0) - (a.debt.originalBorc || 0));
+      }
+
       return (
         <div>
-          {Object.keys(groupedPayments).length === 0 ? (
+          {/* Search & Sort */}
+          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+            <input
+              type="text"
+              placeholder="Borç sahibi veya işlem kodu ile ara..."
+              value={planSearch}
+              onChange={(e) => setPlanSearch(e.target.value)}
+              style={{
+                flex: 1,
+                padding: '0.75rem',
+                fontSize: '1rem',
+                backgroundColor: '#333',
+                color: '#fff',
+                border: '1px solid #555',
+                borderRadius: '8px'
+              }}
+            />
+            <select
+              value={planSort}
+              onChange={(e) => setPlanSort(e.target.value)}
+              style={{
+                padding: '0.75rem',
+                fontSize: '1rem',
+                backgroundColor: '#333',
+                color: '#fff',
+                border: '1px solid #555',
+                borderRadius: '8px',
+                minWidth: '180px'
+              }}
+            >
+              <option value="none">Sıralama Yok</option>
+              <option value="kalan">Kalan Borca Göre</option>
+              <option value="toplam">Toplam Borca Göre</option>
+            </select>
+          </div>
+
+          {groups.length === 0 ? (
             <div style={{ 
               backgroundColor: '#2a2a2a', 
               borderRadius: '12px', 
@@ -765,7 +856,7 @@ function Yonetici({ onBackToHome, onNavigate }) {
               </p>
             </div>
           ) : (
-            Object.values(groupedPayments).map(({ debt, payments }) => (
+            groups.map(({ debt, payments }) => (
               <div key={debt.id} style={{ 
                 backgroundColor: '#2a2a2a', 
                 borderRadius: '12px', 
@@ -900,7 +991,7 @@ function Yonetici({ onBackToHome, onNavigate }) {
               minWidth: 'fit-content'
             }}
           >
-            Planlanan Ödemeler
+            Ödemeler
           </button>
         </div>
 

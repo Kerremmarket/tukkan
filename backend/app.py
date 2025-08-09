@@ -330,8 +330,15 @@ def create_acik_borc():
 @app.route('/api/acik-borclar/<int:borc_id>/odeme', methods=['POST'])
 def make_payment_acik_borc(borc_id):
     """Make payment for açık borç"""
-    data = request.json
-    odeme_miktari = data['odeme_miktari']
+    try:
+        data = request.get_json(force=True, silent=False) or {}
+        if 'odeme_miktari' not in data:
+            return jsonify({'error': 'Ödeme miktarı eksik'}), 400
+        odeme_miktari = float(data['odeme_miktari'])
+        if odeme_miktari <= 0:
+            return jsonify({'error': 'Ödeme miktarı sıfırdan büyük olmalı'}), 400
+    except Exception:
+        return jsonify({'error': 'Geçersiz istek gövdesi'}), 400
     
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -339,13 +346,27 @@ def make_payment_acik_borc(borc_id):
     cursor.execute('SELECT * FROM acik_borclar WHERE id = ?', (borc_id,))
     borc = dict(cursor.fetchone())
     
-    new_acik_borc = max(0, borc['acik_borc'] - odeme_miktari)
+    new_acik_borc = max(0, float(borc['acik_borc']) - odeme_miktari)
     
     cursor.execute('''
         UPDATE acik_borclar 
         SET acik_borc = ?, nagd_odeme = ?, payment_made = TRUE, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
     ''', (new_acik_borc, odeme_miktari, borc_id))
+
+    # Reflect expense in cash flow for current month
+    current_month = datetime.now().month
+    current_year = datetime.now().year
+    cursor.execute('''
+        INSERT OR REPLACE INTO nakit_akisi (ay, yil, giris, cikis, aciklama, updated_at)
+        VALUES (?, ?, 
+                COALESCE((SELECT giris FROM nakit_akisi WHERE ay = ? AND yil = ?), 0),
+                COALESCE((SELECT cikis FROM nakit_akisi WHERE ay = ? AND yil = ?), 0) + ?,
+                ?, CURRENT_TIMESTAMP)
+    ''', (current_month, current_year,
+          current_month, current_year,
+          current_month, current_year, odeme_miktari,
+          f"Açık borç ödemesi - {borc['borc_sahibi']}"))
     
     conn.commit()
     conn.close()
@@ -358,11 +379,31 @@ def undo_payment_acik_borc(borc_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    # Fetch last paid amount before resetting
+    cursor.execute('SELECT nagd_odeme FROM acik_borclar WHERE id = ?', (borc_id,))
+    row = cursor.fetchone()
+    last_paid = float(row['nagd_odeme']) if row and row['nagd_odeme'] is not None else 0.0
+
     cursor.execute('''
         UPDATE acik_borclar 
         SET acik_borc = original_borc, nagd_odeme = 0, payment_made = FALSE, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
     ''', (borc_id,))
+
+    # Reverse cash flow for current month
+    if last_paid > 0:
+        current_month = datetime.now().month
+        current_year = datetime.now().year
+        cursor.execute('''
+            INSERT OR REPLACE INTO nakit_akisi (ay, yil, giris, cikis, aciklama, updated_at)
+            VALUES (?, ?, 
+                    COALESCE((SELECT giris FROM nakit_akisi WHERE ay = ? AND yil = ?), 0),
+                    MAX(0, COALESCE((SELECT cikis FROM nakit_akisi WHERE ay = ? AND yil = ?), 0) - ?),
+                    ?, CURRENT_TIMESTAMP)
+        ''', (current_month, current_year,
+              current_month, current_year,
+              current_month, current_year, last_paid,
+              'Açık borç ödeme geri alma'))
     
     conn.commit()
     conn.close()
