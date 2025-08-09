@@ -794,31 +794,9 @@ def create_planlanan_odeme():
         
         odeme_id = cursor.lastrowid
         
-        # Add to cash flow as planned expense
-        # First check if record exists for this month
-        cursor.execute('SELECT giris, cikis FROM nakit_akisi WHERE ay = ? AND yil = ?', 
-                      (data['month'], data['year']))
-        existing = cursor.fetchone()
-        
-        if existing:
-            # Update existing record with planned payment
-            cursor.execute('''
-                UPDATE nakit_akisi 
-                SET cikis = cikis + ?, 
-                    aciklama = COALESCE(aciklama, '') || '; Planlanan borç ödemesi ₺' || ?,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE ay = ? AND yil = ?
-            ''', (data['amount'], data['amount'], data['month'], data['year']))
-        else:
-            # Insert new record with planned payment
-            cursor.execute('''
-                INSERT INTO nakit_akisi (ay, yil, giris, cikis, aciklama, updated_at)
-                VALUES (?, ?, 0, ?, ?, CURRENT_TIMESTAMP)
-            ''', (data['month'], data['year'], data['amount'],
-                  f"Planlanan borç ödemesi ₺{data['amount']}"))
-        
         conn.commit()
-        return jsonify({'id': odeme_id, 'message': 'Planlanan ödeme eklendi ve nakit akışına eklendi'}), 201
+        # Do not touch cash flow for planned payments
+        return jsonify({'id': odeme_id, 'message': 'Planlanan ödeme eklendi'}), 201
         
     except Exception as e:
         conn.rollback()
@@ -910,29 +888,8 @@ def delete_planlanan_odeme(odeme_id):
         # Delete planned payment
         cursor.execute('DELETE FROM planlanan_odemeler WHERE id = ?', (odeme_id,))
         
-        # Remove from cash flow if it was only a planned payment (not confirmed)
-        if payment_dict['status'] == 'planned':
-            cursor.execute('SELECT giris, cikis FROM nakit_akisi WHERE ay = ? AND yil = ?', 
-                          (payment_dict['month'], payment_dict['year']))
-            existing = cursor.fetchone()
-            
-            if existing:
-                new_cikis = max(0, existing['cikis'] - payment_dict['amount'])
-                if new_cikis == 0:
-                    # If this was the only expense, delete the record
-                    cursor.execute('DELETE FROM nakit_akisi WHERE ay = ? AND yil = ? AND giris = 0', 
-                                  (payment_dict['month'], payment_dict['year']))
-                else:
-                    # Update the expense amount
-                    cursor.execute('''
-                        UPDATE nakit_akisi 
-                        SET cikis = ?, 
-                            updated_at = CURRENT_TIMESTAMP
-                        WHERE ay = ? AND yil = ?
-                    ''', (new_cikis, payment_dict['month'], payment_dict['year']))
-        
         conn.commit()
-        return jsonify({'message': 'Planlanan ödeme silindi ve nakit akışından çıkarıldı'})
+        return jsonify({'message': 'Planlanan ödeme silindi'})
         
     except Exception as e:
         conn.rollback()

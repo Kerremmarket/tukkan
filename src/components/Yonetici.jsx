@@ -219,8 +219,12 @@ function Yonetici({ onBackToHome, onNavigate }) {
       });
 
       if (response.ok) {
-        // Reload data from backend to get updated state
-        loadAcikBorclar();
+        // Reload debts
+        await loadAcikBorclar();
+        // Aggressively refresh cash flow widgets if we're on Finansallar
+        try {
+          await Promise.all([loadCashFlowData(), loadBusinessMetricsCashFlow()]);
+        } catch (_) {}
         // Clear the payment amount input
         setPaymentAmounts(prev => ({
           ...prev,
@@ -904,7 +908,7 @@ function Yonetici({ onBackToHome, onNavigate }) {
                             </span>
                           </div>
                           <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            {payment.status !== 'paid' && (isDue || isPast) && (
+            {payment.status !== 'paid' && (isDue || isPast) && (
                               <button
                                 onClick={() => handleConfirmPayment(payment.id)}
                                 style={{
@@ -920,7 +924,7 @@ function Yonetici({ onBackToHome, onNavigate }) {
                                 Ödeme Onayla
                               </button>
                             )}
-                            {payment.status !== 'paid' && (
+            {payment.status !== 'paid' && (
                               <button
                                 onClick={() => handleDeletePlannedPayment(payment.id)}
                                 style={{
