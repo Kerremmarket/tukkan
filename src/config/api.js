@@ -1,8 +1,21 @@
-// API Configuration - Railway Production Setup - Updated: 2025-07-26
-const API_BASE_URL = 'https://tukkan-production.up.railway.app';
+// API Configuration - Environment aware (local dev vs production)
+// Strategy:
+// - If VITE_API_URL is provided, use it
+// - Otherwise default to same-origin ('') so that:
+//   - In local dev, Vite dev server proxy handles '/api' → backend
+//   - In production (served by Flask), same-origin '/api' works
 
-console.log('Using API URL:', API_BASE_URL);
-console.log('Build timestamp:', new Date().toISOString());
+const ENV_URL = typeof import.meta !== 'undefined' && import.meta.env
+  ? (import.meta.env.VITE_API_URL || '').trim()
+  : '';
+
+// When empty, endpoints below will resolve to '/api/...'
+const API_BASE_URL = ENV_URL || '';
+
+if (typeof window !== 'undefined') {
+  // Helpful runtime logs (safe to keep)
+  console.log('[API] Base URL:', API_BASE_URL || '(same-origin)');
+}
 
 export const API_ENDPOINTS = {
   // User endpoints
