@@ -38,6 +38,7 @@ function Yonetici({ onBackToHome, onNavigate }) {
   
   // Search states
   const [acikBorclarSearch, setAcikBorclarSearch] = useState('');
+  const [borcSort, setBorcSort] = useState('none'); // 'kalan', 'toplam', 'none'
   const [beklenenOdemelerSearch, setBeklenenOdemelerSearch] = useState('');
   
   // Sorting states
@@ -63,6 +64,8 @@ function Yonetici({ onBackToHome, onNavigate }) {
   const [selectedDebt, setSelectedDebt] = useState(null);
   const [showDebtManagement, setShowDebtManagement] = useState(false);
   const [plannedPayments, setPlannedPayments] = useState([]);
+  const [planSearch, setPlanSearch] = useState('');
+  const [planSort, setPlanSort] = useState('none'); // 'kalan', 'toplam', 'none'
   
   // Payment planning form states
   const [newPaymentMonth, setNewPaymentMonth] = useState(new Date().getMonth() + 1);
@@ -601,7 +604,6 @@ function Yonetici({ onBackToHome, onNavigate }) {
     );
 
     // Sorting for açık borçlar
-    const [borcSort, setBorcSort] = React.useState('none'); // 'kalan', 'toplam', 'none'
     const sortedBorclar = React.useMemo(() => {
       const list = [...filteredBorclar];
       if (borcSort === 'kalan') {
@@ -763,9 +765,6 @@ function Yonetici({ onBackToHome, onNavigate }) {
     );
 
     const renderPlannedPaymentsContent = () => {
-      // Local search and sort state for planned payments
-      const [planSearch, setPlanSearch] = React.useState('');
-      const [planSort, setPlanSort] = React.useState('none'); // 'kalan', 'toplam', 'none'
       const currentMonth = getCurrentMonth();
       const currentYear = getCurrentYear();
       
