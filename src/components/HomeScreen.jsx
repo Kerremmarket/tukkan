@@ -81,14 +81,15 @@ function HomeScreen() {
 
       if (response.ok) {
         const result = await response.json();
-        alert(`Ödeme başarılı: ₺${result.paid_amount} - Taksit ${result.installment_no}`);
+        const paid = result.paid_amount_total ?? result.paid_amount ?? paymentAmount;
+        alert(`Ödeme başarılı: ₺${paid}`);
 
         // Optimistic update: reduce açık_odeme locally for immediate UI feedback
         setAllPayments(prev => {
           const updated = prev.map(p => {
-            if ((p.transaction_id || p.id) === (paymentId)) {
-              const currentRemaining = p.acik_odeme || 0;
-              const paid = result.paid_amount || paymentAmount || 0;
+          if ((p.transaction_id || p.id) === (paymentId)) {
+            const currentRemaining = p.acik_odeme || 0;
+            const paid = (result.paid_amount_total ?? result.paid_amount ?? paymentAmount) || 0;
               const newRemaining = Math.max(0, currentRemaining - paid);
               return { ...p, acik_odeme: newRemaining, last_payment_date: new Date().toISOString() };
             }

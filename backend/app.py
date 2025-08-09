@@ -505,59 +505,83 @@ def make_payment_beklenen_odeme(transaction_id):
         conn.close()
         return jsonify({'error': 'Ödeme planı bulunamadı'}), 404
     
-    # Find the next unpaid installment
+    # Compute total remaining across unpaid installments
     cursor.execute('''
-        SELECT * FROM taksit_detaylari 
-        WHERE odeme_plani_id = ? AND odendi = 0 
-        ORDER BY taksit_no ASC 
-        LIMIT 1
+        SELECT COALESCE(SUM(miktar), 0) as remaining
+        FROM taksit_detaylari
+        WHERE odeme_plani_id = ? AND odendi = 0
     ''', (odeme_plani_id,))
-    
-    next_installment = cursor.fetchone()
-    if not next_installment:
+    row_remaining = cursor.fetchone()
+    total_remaining = float(row_remaining['remaining'] if row_remaining else 0)
+    if odeme_miktari <= 0 or total_remaining <= 0:
         conn.close()
-        return jsonify({'error': 'Ödenmemiş taksit bulunamadı'}), 404
-    
-    # Validate payment amount
-    if odeme_miktari <= 0:
+        return jsonify({'error': 'Ödenecek bir tutar bulunamadı'}), 400
+    if odeme_miktari > total_remaining + 1e-6:
         conn.close()
-        return jsonify({'error': 'Ödeme miktarı sıfırdan büyük olmalı'}), 400
-    if odeme_miktari > next_installment['miktar']:
-        conn.close()
-        return jsonify({'error': f'Ödeme miktarı taksit miktarından fazla olamaz (₺{next_installment["miktar"]})'}), 400
-    
-    # Mark installment as paid
-    cursor.execute('''
-        UPDATE taksit_detaylari 
-        SET odendi = 1, odeme_tarihi = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-    ''', (next_installment['id'],))
-    
-    # Add payment to cash flow (exclude mail orders)
-    current_month = datetime.now().month
-    current_year = datetime.now().year
-    
+        return jsonify({'error': f'Ödeme miktarı toplam kalan borçtan (₺{total_remaining}) fazla olamaz'}), 400
+
+    # Process payments across installments sequentially
+    remaining_to_pay = odeme_miktari
+    total_paid = 0.0
+    paid_installments = 0
+
     # Check if this is a mail order transaction
     transaction_dict = dict(transaction)
     is_mail_order = (transaction_dict.get('aciklama') or '').find('Mail_Order: true') != -1
-    
-    if ADD_BEKLENEN_TO_CASHFLOW and not is_mail_order:
+    current_month = datetime.now().month
+    current_year = datetime.now().year
+
+    while remaining_to_pay > 1e-9:
         cursor.execute('''
-            INSERT OR REPLACE INTO nakit_akisi (ay, yil, giris, cikis, aciklama, updated_at)
-            VALUES (?, ?, 
-                    COALESCE((SELECT giris FROM nakit_akisi WHERE ay = ? AND yil = ?), 0) + ?,
-                    COALESCE((SELECT cikis FROM nakit_akisi WHERE ay = ? AND yil = ?), 0),
-                    ?, CURRENT_TIMESTAMP)
-        ''', (current_month, current_year, current_month, current_year, odeme_miktari, 
-              current_month, current_year, f"Taksit ödemesi - {transaction['musteri']}"))
-    
+            SELECT * FROM taksit_detaylari 
+            WHERE odeme_plani_id = ? AND odendi = 0 
+            ORDER BY taksit_no ASC 
+            LIMIT 1
+        ''', (odeme_plani_id,))
+        next_installment = cursor.fetchone()
+        if not next_installment:
+            break
+
+        installment_amount = float(next_installment['miktar'])
+        pay_now = min(installment_amount, remaining_to_pay)
+
+        if pay_now + 1e-6 >= installment_amount:
+            # Full installment paid
+            cursor.execute('''
+                UPDATE taksit_detaylari 
+                SET odendi = 1, odeme_tarihi = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (next_installment['id'],))
+            paid_installments += 1
+        else:
+            # Partial payment: reduce remaining amount
+            new_amount = max(0.0, installment_amount - pay_now)
+            cursor.execute('''
+                UPDATE taksit_detaylari 
+                SET miktar = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (new_amount, next_installment['id']))
+
+        total_paid += pay_now
+        remaining_to_pay -= pay_now
+
+        if ADD_BEKLENEN_TO_CASHFLOW and not is_mail_order:
+            cursor.execute('''
+                INSERT OR REPLACE INTO nakit_akisi (ay, yil, giris, cikis, aciklama, updated_at)
+                VALUES (?, ?, 
+                        COALESCE((SELECT giris FROM nakit_akisi WHERE ay = ? AND yil = ?), 0) + ?,
+                        COALESCE((SELECT cikis FROM nakit_akisi WHERE ay = ? AND yil = ?), 0),
+                        ?, CURRENT_TIMESTAMP)
+            ''', (current_month, current_year, current_month, current_year, pay_now, 
+                  current_month, current_year, f"Taksit ödemesi - {transaction['musteri']}"))
+
     conn.commit()
     conn.close()
-    
+
     return jsonify({
-        'message': 'Taksit ödemesi yapıldı', 
-        'paid_amount': odeme_miktari,
-        'installment_no': next_installment['taksit_no']
+        'message': 'Ödeme kaydedildi',
+        'paid_amount_total': round(total_paid, 2),
+        'paid_installments': paid_installments
     })
 
 @app.route('/api/beklenen-odemeler/<int:transaction_id>/undo', methods=['POST'])
