@@ -99,6 +99,13 @@ function Islemler({ onBackToHome, onNavigate }) {
     return diff;
   };
 
+  // Fallback note extractor for purchases section (kept for backward compatibility)
+  const extractNote = (description) => {
+    if (!description) return '';
+    const noteMatch = description.match(/Not: (.+?)(?:,|$)/);
+    return noteMatch ? noteMatch[1].trim() : '';
+  };
+
 
 
   // Fetch transactions and inventory from backend
