@@ -8,6 +8,7 @@ function Islemler({ onBackToHome, onNavigate }) {
   const [loading, setLoading] = useState(true);
   const [inventory, setInventory] = useState([]);
   const [noteModal, setNoteModal] = useState({ show: false, note: '' });
+  const [saleDetail, setSaleDetail] = useState({ show: false, sale: null });
   
   // User management states
   const [showUserRegistration, setShowUserRegistration] = useState(false);
@@ -98,6 +99,25 @@ function Islemler({ onBackToHome, onNavigate }) {
     const diff = Math.ceil((target - new Date(today.toDateString())) / (1000 * 60 * 60 * 24));
     return diff;
   };
+  // Build payment detail object from a sale row
+  const buildPaymentDetails = (sale) => {
+    const desc = sale.aciklama || '';
+    const pesinAmount = sale.pesin_miktar || 0;
+    const taksitAmount = sale.taksit_miktar || 0;
+    const taksitCount = sale.taksit_sayisi || 0;
+    const pesinType = desc.includes('Pesin_Odeme_Tipi: kart') ? 'Kart' : 'Nakit';
+    const taksitType = desc.includes('Taksit_Odeme_Tipi: kart') ? 'Kart' : 'Nakit';
+    const isMail = desc.includes('Mail_Order: true') || sale.odeme_tipi === 'mail order';
+    return {
+      pesinAmount,
+      taksitAmount,
+      taksitCount,
+      pesinType,
+      taksitType,
+      isMail
+    };
+  };
+
 
   // Fallback note extractor for purchases section (kept for backward compatibility)
   const extractNote = (description) => {
@@ -431,6 +451,62 @@ function Islemler({ onBackToHome, onNavigate }) {
             }}>
               {filteredSales.length} satış gösteriliyor
             </div>
+
+      {/* Sale Detail Modal */}
+      {saleDetail.show && saleDetail.sale && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 3000
+        }}>
+          <div style={{ backgroundColor: '#2a2a2a', color: '#fff', borderRadius: '10px', width: '700px', maxWidth: '95%', padding: '1.25rem' }}>
+            {(() => {
+              const s = saleDetail.sale;
+              const tx = extractTransactionId(s.aciklama, s.id, 'satis');
+              const teslim = extractDeliveryDate(s.aciklama);
+              const p = buildPaymentDetails(s);
+              return (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                    <h3 style={{ margin: 0, color: '#4dabf7' }}>Satış Detayı — {tx}</h3>
+                    <button onClick={() => setSaleDetail({ show: false, sale: null })} style={{ background: 'none', border: '1px solid #555', color: '#fff', borderRadius: '6px', padding: '0.25rem 0.5rem', cursor: 'pointer' }}>Kapat</button>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                    <div style={{ background: '#1a1a1a', border: '1px solid #444', borderRadius: '6px', padding: '0.75rem' }}>
+                      <div style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Ürün</div>
+                      <div>Ürün Kodu: {s.urun_kodu}</div>
+                      <div>Miktar: {formatNumber(s.miktar)} m</div>
+                      <div>Birim Fiyat: {formatNumber(s.birim_fiyat)} ₺</div>
+                      <div>Toplam: {formatNumber(s.toplam_tutar)} ₺</div>
+                      {teslim && <div>Teslim: {teslim}</div>}
+                    </div>
+                    <div style={{ background: '#1a1a1a', border: '1px solid #444', borderRadius: '6px', padding: '0.75rem' }}>
+                      <div style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Ödeme Detayı</div>
+                      <div>Peşin: {formatNumber(p.pesinAmount)} ₺ ({p.pesinType})</div>
+                      <div>Taksit: {formatNumber(p.taksitAmount)} ₺ ({p.taksitType})</div>
+                      <div>Taksit Sayısı: {p.taksitCount}</div>
+                      <div>Mail Order: {p.isMail ? 'Evet' : 'Hayır'}</div>
+                    </div>
+                  </div>
+                  <div style={{ background: '#1a1a1a', border: '1px solid #444', borderRadius: '6px', padding: '0.75rem', textAlign: 'center' }}>
+                    <div style={{ marginBottom: '0.5rem', fontWeight: '600' }}>Görsel</div>
+                    <div style={{ height: '160px', background: '#333', border: '1px dashed #555', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888' }}>
+                      [Görsel yer tutucu]
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
           </div>
 
           {/* Sales Table */}
@@ -494,20 +570,7 @@ function Islemler({ onBackToHome, onNavigate }) {
                         borderBottom: '1px solid #555'
                       }}>
                         <td style={{ padding: '0.5rem', color: '#28a745', fontWeight: '500', cursor: 'pointer', textDecoration: 'underline' }}
-                            onClick={() => {
-                              const tx = extractTransactionId(sale.aciklama, sale.id, 'satis');
-                              const details = `Satış Detayı\n\n` +
-                                `İşlem Kodu: ${tx}\n` +
-                                `Ürün: ${sale.urun_kodu}\n` +
-                                `Miktar: ${formatNumber(sale.miktar)} m\n` +
-                                `Birim Fiyat: ${formatNumber(sale.birim_fiyat)} ₺\n` +
-                                `Toplam: ${formatNumber(sale.toplam_tutar)} ₺\n` +
-                                `Satıcı: ${sale.aciklama?.includes('Satıcı:') ? sale.aciklama.split('Satıcı:')[1]?.split(',')[0]?.trim() : '-'}\n` +
-                                `Müşteri: ${sale.musteri || '-'}\n` +
-                                `Teslim Günü: ${extractDeliveryDate(sale.aciklama) || '-'}\n` +
-                                `Ödeme Tipi: ${sale.odeme_tipi}`;
-                              alert(details + "\n\n[Resim önizleme yeri - placeholder]");
-                            }}
+                            onClick={() => setSaleDetail({ show: true, sale })}
                         >
                           {extractTransactionId(sale.aciklama, sale.id, 'satis')}
                         </td>

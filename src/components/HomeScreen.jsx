@@ -502,7 +502,7 @@ function HomeScreen() {
         justifyContent: 'space-between', 
         width: '100%',
         maxWidth: '100%',
-        gap: '1.5rem',
+        gap: '1rem',
         flex: 1
       }}>
         <div style={{ 
@@ -858,7 +858,9 @@ function HomeScreen() {
                   borderRadius: '8px',
                   padding: '1rem',
                   marginBottom: '0.75rem'
-                }}>
+                }}
+                onClick={() => alert(`İşlem Detayı\n\nİşlem Kodu: ${d.islemKodu}\nMüşteri: ${d.musteri}\nTeslim: ${d.teslimGunu}`)}
+                >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <div style={{ fontWeight: '600', color: '#4dabf7' }}>{d.musteri}</div>
@@ -867,6 +869,22 @@ function HomeScreen() {
                     <div style={{ color: (d.kalanGun ?? 0) < 0 ? '#ff6b6b' : '#51cf66', fontWeight: '600' }}>
                       {d.kalanGun !== null ? (d.kalanGun >= 0 ? `${d.kalanGun} gün` : `${Math.abs(d.kalanGun)} gün gecikti`) : '-'}
                     </div>
+                  </div>
+                  <div style={{ marginTop: '0.6rem', display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); alert('Sipariş hazır olarak işaretlendi.'); }}
+                      style={{
+                        padding: '0.35rem 0.7rem',
+                        backgroundColor: '#51cf66',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem'
+                      }}
+                    >
+                      ✓ Hazır
+                    </button>
                   </div>
                 </div>
               ));
