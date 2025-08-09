@@ -85,16 +85,18 @@ function Islemler({ onBackToHome, onNavigate }) {
   };
 
   // Helper function to extract note from description
-  const extractNote = (description) => {
+  const extractDeliveryDate = (description) => {
     if (!description) return '';
-    
-    // Look for note pattern in description
-    const noteMatch = description.match(/Not: (.+?)(?:,|$)/);
-    if (noteMatch) {
-      return noteMatch[1].trim();
-    }
-    
-    return '';
+    const m = description.match(/Teslim: (\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : '';
+  };
+
+  const daysUntil = (dateStr) => {
+    if (!dateStr) return '';
+    const today = new Date();
+    const target = new Date(dateStr);
+    const diff = Math.ceil((target - new Date(today.toDateString())) / (1000 * 60 * 60 * 24));
+    return diff;
   };
 
 
@@ -446,8 +448,8 @@ function Islemler({ onBackToHome, onNavigate }) {
                   <th style={{ padding: '0.5rem', textAlign: 'left', color: 'white', width: '120px' }}>Satıcı İsmi</th>
                   <th style={{ padding: '0.5rem', textAlign: 'left', color: 'white', width: '140px' }}>Müşteri</th>
                   <th style={{ padding: '0.5rem', textAlign: 'left', color: 'white', width: '120px' }}>Tarih</th>
-                  <th style={{ padding: '0.5rem', textAlign: 'left', color: 'white', width: '100px' }}>Ödeme Tipi</th>
-                  <th style={{ padding: '0.5rem', textAlign: 'left', color: 'white', width: '50px' }}>Not</th>
+                  <th style={{ padding: '0.5rem', textAlign: 'left', color: 'white', width: '100px' }}>Teslim Günü</th>
+                  <th style={{ padding: '0.5rem', textAlign: 'left', color: 'white', width: '70px' }}>Kalan Gün</th>
                 </tr>
               </thead>
               <tbody>
@@ -476,14 +478,30 @@ function Islemler({ onBackToHome, onNavigate }) {
                 ) : (
                   filteredSales.map((sale, index) => {
                     const profit = calculateProfit(sale);
-                    const note = extractNote(sale.aciklama);
+                    const teslim = extractDeliveryDate(sale.aciklama);
+                    const kalanGun = teslim ? daysUntil(teslim) : '';
                     
                     return (
                       <tr key={sale.id} style={{ 
                         backgroundColor: index % 2 === 0 ? '#2a2a2a' : '#333',
                         borderBottom: '1px solid #555'
                       }}>
-                        <td style={{ padding: '0.5rem', color: '#28a745', fontWeight: '500' }}>
+                        <td style={{ padding: '0.5rem', color: '#28a745', fontWeight: '500', cursor: 'pointer', textDecoration: 'underline' }}
+                            onClick={() => {
+                              const tx = extractTransactionId(sale.aciklama, sale.id, 'satis');
+                              const details = `Satış Detayı\n\n` +
+                                `İşlem Kodu: ${tx}\n` +
+                                `Ürün: ${sale.urun_kodu}\n` +
+                                `Miktar: ${formatNumber(sale.miktar)} m\n` +
+                                `Birim Fiyat: ${formatNumber(sale.birim_fiyat)} ₺\n` +
+                                `Toplam: ${formatNumber(sale.toplam_tutar)} ₺\n` +
+                                `Satıcı: ${sale.aciklama?.includes('Satıcı:') ? sale.aciklama.split('Satıcı:')[1]?.split(',')[0]?.trim() : '-'}\n` +
+                                `Müşteri: ${sale.musteri || '-'}\n` +
+                                `Teslim Günü: ${extractDeliveryDate(sale.aciklama) || '-'}\n` +
+                                `Ödeme Tipi: ${sale.odeme_tipi}`;
+                              alert(details + "\n\n[Resim önizleme yeri - placeholder]");
+                            }}
+                        >
                           {extractTransactionId(sale.aciklama, sale.id, 'satis')}
                         </td>
                         <td style={{ padding: '0.5rem', color: '#fff' }}>{sale.urun_kodu}</td>
@@ -500,33 +518,9 @@ function Islemler({ onBackToHome, onNavigate }) {
                         <td style={{ padding: '0.5rem', color: '#fff' }}>{sale.aciklama?.includes('Satıcı:') ? sale.aciklama.split('Satıcı:')[1]?.split(',')[0]?.trim() : '-'}</td>
                         <td style={{ padding: '0.5rem', color: '#fff' }}>{sale.musteri || '-'}</td>
                         <td style={{ padding: '0.5rem', color: '#ccc' }}>{formatDate(sale.created_at)}</td>
-                        <td style={{ padding: '0.5rem', color: '#ffc107', fontStyle: 'italic' }}>
-                          {sale.odeme_tipi === 'nakit' ? '💵 Nakit' : 
-                           sale.odeme_tipi === 'kart' ? '💳 Kart' : 
-                           sale.odeme_tipi === 'nakit+kart' ? '💵💳 Nakit+Kart' :
-                           sale.odeme_tipi === 'mail order' ? '📦 Mail Order' :
-                           sale.odeme_tipi}
-                        </td>
-                        <td style={{ padding: '0.5rem', textAlign: 'center' }}>
-                          {note ? (
-                            <button 
-                              onClick={() => setNoteModal({ show: true, note: note })}
-                              style={{
-                                padding: '0.2rem 0.4rem',
-                                backgroundColor: '#ffc107',
-                                color: '#000',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                fontSize: '0.7rem'
-                              }}
-                              title="Notu görüntüle"
-                            >
-                              📝
-                            </button>
-                          ) : (
-                            <span style={{ color: '#666' }}>-</span>
-                          )}
+                        <td style={{ padding: '0.5rem', color: '#ffc107' }}>{teslim || '-'}</td>
+                        <td style={{ padding: '0.5rem', color: kalanGun < 0 ? '#ff6b6b' : '#51cf66' }}>
+                          {teslim ? (kalanGun >= 0 ? `${kalanGun} gün` : `${Math.abs(kalanGun)} gün gecikti`) : '-'}
                         </td>
                       </tr>
                     );

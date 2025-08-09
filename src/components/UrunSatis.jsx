@@ -21,7 +21,7 @@ function UrunSatis({ onBackToHome, onNavigate, inventoryItems, setInventoryItems
   const [orderItems, setOrderItems] = useState([]);
   const [saticiIsmi, setSaticiIsmi] = useState('');
   const [musteriBilgileri, setMusteriBilgileri] = useState('');
-  const [notlar, setNotlar] = useState('');
+  const [deliveryDate, setDeliveryDate] = useState('');
   
   // Payment plan states
   const [paymentType, setPaymentType] = useState('pesin+taksit'); // 'mail-order' or 'pesin+taksit'
@@ -366,7 +366,7 @@ function UrunSatis({ onBackToHome, onNavigate, inventoryItems, setInventoryItems
           musteri: musteriBilgileri,
           odeme_tipi: paymentTypeResult,
           satici_ismi: saticiIsmi,
-          aciklama: `Satış ID: ${transactionId}, Satıcı: ${saticiIsmi}${notlar ? ', Not: ' + notlar : ''}`,
+          aciklama: `Satış ID: ${transactionId}, Satıcı: ${saticiIsmi}${deliveryDate ? ', Teslim: ' + deliveryDate : ''}`,
           pesin_miktar: itemPesinAmount,
           taksit_miktar: itemTaksitAmount,
           taksit_sayisi: paymentType === 'pesin+taksit' ? parseInt(taksitSayisi) || 0 : 0,
@@ -442,7 +442,7 @@ function UrunSatis({ onBackToHome, onNavigate, inventoryItems, setInventoryItems
         setOrderItems([]);
         setSaticiIsmi('');
         setMusteriBilgileri('');
-        setNotlar('');
+        setDeliveryDate('');
         setPaymentType('pesin+taksit');
         setTaksitSayisi('');
         setPesinKrediKarti(false);
@@ -964,11 +964,12 @@ function UrunSatis({ onBackToHome, onNavigate, inventoryItems, setInventoryItems
               />
             </div>
             <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem' }}>NOTLAR</label>
+              <label style={{ display: 'block', marginBottom: '0.5rem' }}>TESLİM GÜNÜ</label>
               <input
-                type="text"
-                value={notlar}
-                onChange={(e) => setNotlar(e.target.value)}
+                type="date"
+                value={deliveryDate}
+                min={new Date().toISOString().split('T')[0]}
+                onChange={(e) => setDeliveryDate(e.target.value)}
                 style={{
                   width: '100%',
                   padding: '0.8rem',

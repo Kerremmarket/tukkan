@@ -10,6 +10,9 @@ function HomeScreen() {
   const [currentPage, setCurrentPage] = useState('home');
   const [posts, setPosts] = useState([]);
   const [overduePayments, setOverduePayments] = useState([]);
+  const [deliveries, setDeliveries] = useState([]);
+  const [deliveriesSearch, setDeliveriesSearch] = useState('');
+  const [deliveriesSort, setDeliveriesSort] = useState('days'); // 'days' or 'customer'
   const [paymentAmounts, setPaymentAmounts] = useState({}); // Track payment amounts for each payment
   const [allPayments, setAllPayments] = useState([]); // All beklenen ödemeler
   const [paymentsSearch, setPaymentsSearch] = useState(''); // Search term for payments
@@ -30,6 +33,45 @@ function HomeScreen() {
   
   const currentUser = getCurrentUser();
   const isAdmin = currentUser?.role === 'yönetici';
+  // Load deliveries from sales (transactions)
+  const loadDeliveries = async () => {
+    try {
+      const res = await fetch(API_ENDPOINTS.ISLEMLER);
+      if (!res.ok) return setDeliveries([]);
+      const txs = await res.json();
+      const sales = (txs || []).filter(t => t.islem_tipi === 'satis');
+      const extractDeliveryDate = (description) => {
+        if (!description) return '';
+        const m = description.match(/Teslim: (\d{4}-\d{2}-\d{2})/);
+        return m ? m[1] : '';
+      };
+      const extractTransactionId = (description, fallbackId) => {
+        if (!description) return `SAT-${fallbackId}`;
+        const m = description.match(/Satış ID: (SAT-\d{6}-\d{6})/);
+        return m ? m[1] : `SAT-${fallbackId}`;
+      };
+      const daysUntil = (dateStr) => {
+        if (!dateStr) return null;
+        const today = new Date();
+        const target = new Date(dateStr);
+        return Math.ceil((target - new Date(today.toDateString())) / (1000*60*60*24));
+      };
+      const mapped = sales.map(s => {
+        const teslim = extractDeliveryDate(s.aciklama);
+        return {
+          id: s.id,
+          islemKodu: extractTransactionId(s.aciklama, s.id),
+          musteri: s.musteri || '-',
+          teslimGunu: teslim,
+          kalanGun: teslim ? daysUntil(teslim) : null
+        };
+      }).filter(d => d.teslimGunu); // only those with delivery
+      setDeliveries(mapped);
+    } catch {
+      setDeliveries([]);
+    }
+  };
+
   
   // TODO: Make overdue threshold configurable instead of hardcoded
   const OVERDUE_THRESHOLD_DAYS = 30;
@@ -281,9 +323,12 @@ function HomeScreen() {
     
     // Check for updates periodically
     const paymentInterval = setInterval(loadOverduePayments, 2000);
+    loadDeliveries();
+    const deliveryInterval = setInterval(loadDeliveries, 3000);
 
     return () => {
       clearInterval(paymentInterval);
+      clearInterval(deliveryInterval);
     };
   }, []); // Load once on component mount
 
@@ -740,6 +785,91 @@ function HomeScreen() {
                   </div>
                 );
               });
+            })()}
+          </div>
+        </div>
+
+        {/* Deliveries */}
+        <div style={{ 
+          flex: 1, 
+          padding: '2rem', 
+          backgroundColor: '#2a2a2a',
+          borderRadius: '12px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+          border: '1px solid #444',
+          minHeight: '400px',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          <h2 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '1.5rem', fontWeight: '600', color: '#fff' }}>Teslimatlar</h2>
+
+          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', alignItems: 'center' }}>
+            <input
+              type="text"
+              placeholder="Müşteri veya işlem kodu ile ara..."
+              value={deliveriesSearch}
+              onChange={(e) => setDeliveriesSearch(e.target.value)}
+              style={{
+                flex: 1,
+                padding: '0.5rem',
+                borderRadius: '4px',
+                border: '1px solid #555',
+                backgroundColor: '#333',
+                color: '#fff',
+                fontSize: '0.9rem'
+              }}
+            />
+            <select
+              value={deliveriesSort}
+              onChange={(e) => setDeliveriesSort(e.target.value)}
+              style={{
+                padding: '0.5rem',
+                borderRadius: '4px',
+                border: '1px solid #555',
+                backgroundColor: '#333',
+                color: '#fff',
+                fontSize: '0.9rem',
+                minWidth: '180px'
+              }}
+            >
+              <option value="days">Kalan Güne Göre</option>
+              <option value="customer">Müşteri Adına Göre</option>
+            </select>
+          </div>
+
+          <div style={{ flex: 1, overflowY: 'auto', color: '#ccc' }}>
+            {(() => {
+              const search = deliveriesSearch.toLowerCase();
+              let list = deliveries.filter(d =>
+                d.musteri.toLowerCase().includes(search) || d.islemKodu.toLowerCase().includes(search)
+              );
+              if (deliveriesSort === 'days') {
+                list.sort((a, b) => (a.kalanGun ?? 9999) - (b.kalanGun ?? 9999));
+              } else {
+                list.sort((a, b) => a.musteri.localeCompare(b.musteri));
+              }
+              if (list.length === 0) {
+                return <div style={{ textAlign: 'center', color: '#999', fontStyle: 'italic', padding: '2rem' }}>Henüz teslimat bulunmuyor.</div>;
+              }
+              return list.map((d, idx) => (
+                <div key={d.id} style={{
+                  backgroundColor: '#333',
+                  border: '1px solid #555',
+                  borderRadius: '8px',
+                  padding: '1rem',
+                  marginBottom: '0.75rem'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: '600', color: '#4dabf7' }}>{d.musteri}</div>
+                      <div style={{ color: '#ccc', fontSize: '0.9rem' }}>{d.islemKodu}</div>
+                    </div>
+                    <div style={{ color: (d.kalanGun ?? 0) < 0 ? '#ff6b6b' : '#51cf66', fontWeight: '600' }}>
+                      {d.kalanGun !== null ? (d.kalanGun >= 0 ? `${d.kalanGun} gün` : `${Math.abs(d.kalanGun)} gün gecikti`) : '-'}
+                    </div>
+                  </div>
+                </div>
+              ));
             })()}
           </div>
         </div>
