@@ -526,7 +526,8 @@ def make_payment_beklenen_odeme(transaction_id):
     current_year = datetime.now().year
     
     # Check if this is a mail order transaction
-    is_mail_order = transaction.get('aciklama', '').find('Mail_Order: true') != -1
+    transaction_dict = dict(transaction)
+    is_mail_order = (transaction_dict.get('aciklama') or '').find('Mail_Order: true') != -1
     
     if not is_mail_order:
         cursor.execute('''
@@ -596,7 +597,8 @@ def undo_payment_beklenen_odeme(transaction_id):
     current_year = datetime.now().year
     
     # Check if this is a mail order transaction
-    is_mail_order = transaction.get('aciklama', '').find('Mail_Order: true') != -1
+    transaction_dict = dict(transaction)
+    is_mail_order = (transaction_dict.get('aciklama') or '').find('Mail_Order: true') != -1
     
     if not is_mail_order:
         cursor.execute('''
@@ -1848,7 +1850,14 @@ def pay_installment(taksit_id):
         ''', (taksit['odeme_plani_id'],))
         
         transaction_info = cursor.fetchone()
-        is_mail_order = transaction_info and transaction_info['aciklama'].find('Mail_Order: true') != -1
+        is_mail_order = False
+        if transaction_info:
+            try:
+                # transaction_info may be a Row; access by key safely
+                info = dict(transaction_info)
+                is_mail_order = (info.get('aciklama') or '').find('Mail_Order: true') != -1
+            except Exception:
+                pass
         
         if not is_mail_order:
             cursor.execute('''

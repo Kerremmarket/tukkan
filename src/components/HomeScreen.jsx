@@ -511,7 +511,8 @@ function HomeScreen() {
           border: '1px solid #444',
           minHeight: '400px',
           display: 'flex',
-          flexDirection: 'column'
+          flexDirection: 'column',
+          height: '100%'
         }}>
           <h2 style={{ 
             marginTop: 0,
@@ -567,7 +568,8 @@ function HomeScreen() {
           <div style={{ 
             flex: 1,
             overflowY: 'auto',
-            color: '#ccc'
+            color: '#ccc',
+            maxHeight: 'calc(100vh - 300px)'
           }}>
             {(() => {
               const filteredPayments = filterPayments(allPayments, paymentsSearch);
