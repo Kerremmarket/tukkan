@@ -13,6 +13,10 @@ CORS(app)  # Enable CORS for React frontend
 # Database configuration
 DATABASE_PATH = os.path.join(os.path.dirname(__file__), 'tukkan.db')
 
+# Feature flags / behavior toggles
+# If False, beklenen ödemeler payments will NOT be written into cash flow (giriş)
+ADD_BEKLENEN_TO_CASHFLOW = False
+
 def init_db():
     """Initialize the database with all required tables"""
     conn = sqlite3.connect(DATABASE_PATH)
@@ -466,8 +470,13 @@ def create_beklenen_odeme():
 @app.route('/api/beklenen-odemeler/<int:transaction_id>/odeme', methods=['POST'])
 def make_payment_beklenen_odeme(transaction_id):
     """Make payment for cash debt from transaction"""
-    data = request.json
-    odeme_miktari = float(data['odeme_miktari'])
+    try:
+        data = request.get_json(force=True, silent=False) or {}
+        if 'odeme_miktari' not in data:
+            return jsonify({'error': 'Ödeme miktarı eksik'}), 400
+        odeme_miktari = float(data['odeme_miktari'])
+    except Exception:
+        return jsonify({'error': 'Geçersiz istek gövdesi'}), 400
     
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -510,9 +519,12 @@ def make_payment_beklenen_odeme(transaction_id):
         return jsonify({'error': 'Ödenmemiş taksit bulunamadı'}), 404
     
     # Validate payment amount
+    if odeme_miktari <= 0:
+        conn.close()
+        return jsonify({'error': 'Ödeme miktarı sıfırdan büyük olmalı'}), 400
     if odeme_miktari > next_installment['miktar']:
         conn.close()
-        return jsonify({'error': f'Ödeme miktarı taksit miktarından fazla olamaz (₺{next_installment["miktar"]})'})
+        return jsonify({'error': f'Ödeme miktarı taksit miktarından fazla olamaz (₺{next_installment["miktar"]})'}), 400
     
     # Mark installment as paid
     cursor.execute('''
@@ -529,7 +541,7 @@ def make_payment_beklenen_odeme(transaction_id):
     transaction_dict = dict(transaction)
     is_mail_order = (transaction_dict.get('aciklama') or '').find('Mail_Order: true') != -1
     
-    if not is_mail_order:
+    if ADD_BEKLENEN_TO_CASHFLOW and not is_mail_order:
         cursor.execute('''
             INSERT OR REPLACE INTO nakit_akisi (ay, yil, giris, cikis, aciklama, updated_at)
             VALUES (?, ?, 
@@ -600,7 +612,7 @@ def undo_payment_beklenen_odeme(transaction_id):
     transaction_dict = dict(transaction)
     is_mail_order = (transaction_dict.get('aciklama') or '').find('Mail_Order: true') != -1
     
-    if not is_mail_order:
+    if ADD_BEKLENEN_TO_CASHFLOW and not is_mail_order:
         cursor.execute('''
             INSERT OR REPLACE INTO nakit_akisi (ay, yil, giris, cikis, aciklama, updated_at)
             VALUES (?, ?, 
@@ -1859,7 +1871,7 @@ def pay_installment(taksit_id):
             except Exception:
                 pass
         
-        if not is_mail_order:
+        if ADD_BEKLENEN_TO_CASHFLOW and not is_mail_order:
             cursor.execute('''
                 INSERT OR REPLACE INTO nakit_akisi (ay, yil, giris, cikis, aciklama, updated_at)
                 VALUES (?, ?, 

@@ -37,15 +37,31 @@ function HomeScreen() {
 
 
   // Payment handling functions
-  const handlePaymentAmountChange = (paymentId, amount) => {
+  const handlePaymentAmountChange = (payment, rawValue) => {
+    const paymentId = payment.transaction_id || payment.id;
+    const typed = rawValue === '' ? '' : parseInt(rawValue) || 0;
+    const remaining = Math.max(0, (payment.acik_odeme || 0));
+    const installment = Math.max(0, (payment.taksit_miktari || 0));
+    const cap = Math.min(remaining || Infinity, installment || Infinity);
+    const clamped = rawValue === '' ? '' : Math.max(0, Math.min(typed, isFinite(cap) ? cap : typed));
     setPaymentAmounts(prev => ({
       ...prev,
-      [paymentId]: amount === '' ? '' : parseInt(amount) || 0
+      [paymentId]: clamped
     }));
   };
 
   const handlePayment = async (payment) => {
-    const paymentAmount = paymentAmounts[payment.transaction_id] || (payment.taksit_miktari || 0);
+    const paymentId = payment.transaction_id || payment.id;
+    const txId = Number(payment.transaction_id ?? payment.id);
+    if (!Number.isFinite(txId)) {
+      alert('Geçersiz işlem kimliği. Lütfen sayfayı yenileyin.');
+      return;
+    }
+    const remaining = Math.max(0, (payment.acik_odeme || 0));
+    const installment = Math.max(0, (payment.taksit_miktari || 0));
+    const cap = Math.min(remaining || Infinity, installment || Infinity);
+    const entered = paymentAmounts[paymentId];
+    const paymentAmount = entered === '' || entered === undefined ? (installment || 0) : Math.min(entered, isFinite(cap) ? cap : entered);
     
     if (!paymentAmount || paymentAmount <= 0) {
       alert('Lütfen geçerli bir ödeme miktarı girin.');
@@ -53,7 +69,7 @@ function HomeScreen() {
     }
     
     try {
-      const response = await fetch(`${API_ENDPOINTS.BEKLENEN_ODEMELER}/${payment.transaction_id}/odeme`, {
+      const response = await fetch(`${API_ENDPOINTS.BEKLENEN_ODEMELER}/${txId}/odeme`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -66,18 +82,42 @@ function HomeScreen() {
       if (response.ok) {
         const result = await response.json();
         alert(`Ödeme başarılı: ₺${result.paid_amount} - Taksit ${result.installment_no}`);
-        
+
+        // Optimistic update: reduce açık_odeme locally for immediate UI feedback
+        setAllPayments(prev => {
+          const updated = prev.map(p => {
+            if ((p.transaction_id || p.id) === (paymentId)) {
+              const currentRemaining = p.acik_odeme || 0;
+              const paid = result.paid_amount || paymentAmount || 0;
+              const newRemaining = Math.max(0, currentRemaining - paid);
+              return { ...p, acik_odeme: newRemaining, last_payment_date: new Date().toISOString() };
+            }
+            return p;
+          });
+          // Remove fully paid items immediately
+          return updated.filter(p => (p.acik_odeme || 0) > 0);
+        });
+
         // Clear the payment amount input
         setPaymentAmounts(prev => ({
           ...prev,
-          [payment.transaction_id]: ''
+          [paymentId]: ''
         }));
-        
-        // Reload overdue payments
-        loadOverduePayments();
+
+        // Also refresh from backend shortly to ensure consistency
+        setTimeout(loadOverduePayments, 400);
       } else {
-        const error = await response.json();
-        alert(`Ödeme hatası: ${error.error || 'Bilinmeyen hata'}`);
+        let message = 'Bilinmeyen hata';
+        try {
+          const error = await response.json();
+          message = error.error || message;
+        } catch (_) {
+          try {
+            const txt = await response.text();
+            if (txt) message = txt;
+          } catch (_) {}
+        }
+        alert(`Ödeme hatası: ${message}`);
       }
     } catch (error) {
       console.error('Payment error:', error);
@@ -667,8 +707,8 @@ function HomeScreen() {
                           type="number"
                           step="1"
                           placeholder="Ödeme miktarı"
-                          value={paymentAmounts[payment.transaction_id] || ''}
-                          onChange={(e) => handlePaymentAmountChange(payment.transaction_id, e.target.value)}
+                          value={paymentAmounts[payment.transaction_id || payment.id] || ''}
+                          onChange={(e) => handlePaymentAmountChange(payment, e.target.value)}
                           style={{
                             flex: 1,
                             padding: '0.5rem',
