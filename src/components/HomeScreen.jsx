@@ -12,7 +12,7 @@ function HomeScreen() {
   const [overduePayments, setOverduePayments] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
   const [deliveriesSearch, setDeliveriesSearch] = useState('');
-  const [deliveriesSort, setDeliveriesSort] = useState('days'); // 'days' or 'customer'
+  const [deliveriesSort, setDeliveriesSort] = useState('days'); // 'days' | 'customer' | 'ready'
   const [paymentAmounts, setPaymentAmounts] = useState({}); // Track payment amounts for each payment
   const [allPayments, setAllPayments] = useState([]); // All beklenen ödemeler
   const [paymentsSearch, setPaymentsSearch] = useState(''); // Search term for payments
@@ -34,6 +34,18 @@ function HomeScreen() {
   const currentUser = getCurrentUser();
   const isAdmin = currentUser?.role === 'yönetici';
   // Load deliveries from sales (transactions)
+  const getReadySet = () => {
+    try {
+      const raw = localStorage.getItem('tukkan-ready-deliveries');
+      const arr = raw ? JSON.parse(raw) : [];
+      return new Set(arr);
+    } catch { return new Set(); }
+  };
+
+  const saveReadySet = (setObj) => {
+    try { localStorage.setItem('tukkan-ready-deliveries', JSON.stringify(Array.from(setObj))); } catch {}
+  };
+
   const loadDeliveries = async () => {
     try {
       const res = await fetch(API_ENDPOINTS.ISLEMLER);
@@ -56,6 +68,7 @@ function HomeScreen() {
         const target = new Date(dateStr);
         return Math.ceil((target - new Date(today.toDateString())) / (1000*60*60*24));
       };
+      const readySet = getReadySet();
       const mapped = sales.map(s => {
         const teslim = extractDeliveryDate(s.aciklama);
         return {
@@ -63,13 +76,21 @@ function HomeScreen() {
           islemKodu: extractTransactionId(s.aciklama, s.id),
           musteri: s.musteri || '-',
           teslimGunu: teslim,
-          kalanGun: teslim ? daysUntil(teslim) : null
+          kalanGun: teslim ? daysUntil(teslim) : null,
+          ready: readySet.has(s.id)
         };
       }).filter(d => d.teslimGunu); // only those with delivery
       setDeliveries(mapped);
     } catch {
       setDeliveries([]);
     }
+  };
+
+  const markDeliveryReady = (id) => {
+    const setObj = getReadySet();
+    setObj.add(id);
+    saveReadySet(setObj);
+    setDeliveries(prev => prev.map(d => d.id === id ? { ...d, ready: true } : d));
   };
 
   
@@ -498,12 +519,13 @@ function HomeScreen() {
       
       {/* Main content boxes */}
       <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr 1fr',
         width: '100%',
         maxWidth: '100%',
         gap: '1rem',
-        flex: 1
+        flex: 1,
+        minWidth: 0
       }}>
         <div style={{ 
           flex: 1, 
@@ -834,6 +856,7 @@ function HomeScreen() {
             >
               <option value="days">Kalan Güne Göre</option>
               <option value="customer">Müşteri Adına Göre</option>
+              <option value="ready">Hazır Durumuna Göre</option>
             </select>
           </div>
 
@@ -846,15 +869,19 @@ function HomeScreen() {
               if (deliveriesSort === 'days') {
                 list.sort((a, b) => (a.kalanGun ?? 9999) - (b.kalanGun ?? 9999));
               } else {
-                list.sort((a, b) => a.musteri.localeCompare(b.musteri));
+                if (deliveriesSort === 'customer') {
+                  list.sort((a, b) => a.musteri.localeCompare(b.musteri));
+                } else if (deliveriesSort === 'ready') {
+                  list.sort((a, b) => (b.ready === true) - (a.ready === true));
+                }
               }
               if (list.length === 0) {
                 return <div style={{ textAlign: 'center', color: '#999', fontStyle: 'italic', padding: '2rem' }}>Henüz teslimat bulunmuyor.</div>;
               }
               return list.map((d, idx) => (
                 <div key={d.id} style={{
-                  backgroundColor: '#333',
-                  border: '1px solid #555',
+                  backgroundColor: d.ready ? '#1f3a2a' : '#333',
+                  border: `1px solid ${d.ready ? '#2f6f46' : '#555'}`,
                   borderRadius: '8px',
                   padding: '1rem',
                   marginBottom: '0.75rem'
@@ -872,10 +899,10 @@ function HomeScreen() {
                   </div>
                   <div style={{ marginTop: '0.6rem', display: 'flex', gap: '0.5rem' }}>
                     <button
-                      onClick={(e) => { e.stopPropagation(); alert('Sipariş hazır olarak işaretlendi.'); }}
+                      onClick={(e) => { e.stopPropagation(); if (!d.ready) markDeliveryReady(d.id); }}
                       style={{
                         padding: '0.35rem 0.7rem',
-                        backgroundColor: '#51cf66',
+                        backgroundColor: d.ready ? '#2f6f46' : '#51cf66',
                         color: '#fff',
                         border: 'none',
                         borderRadius: '4px',
@@ -883,7 +910,7 @@ function HomeScreen() {
                         fontSize: '0.8rem'
                       }}
                     >
-                      ✓ Hazır
+                      {d.ready ? 'Hazırlandı' : '✓ Hazır'}
                     </button>
                   </div>
                 </div>
