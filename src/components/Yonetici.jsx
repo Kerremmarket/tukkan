@@ -603,8 +603,8 @@ function Yonetici({ onBackToHome, onNavigate }) {
       borc.islemKodu.toLowerCase().includes(acikBorclarSearch.toLowerCase())
     );
 
-    // Sorting for açık borçlar
-    const sortedBorclar = React.useMemo(() => {
+    // Sorting for açık borçlar (no hooks here to avoid nested hooks issues)
+    const sortedBorclar = (() => {
       const list = [...filteredBorclar];
       if (borcSort === 'kalan') {
         list.sort((a, b) => (b.acikBorc || 0) - (a.acikBorc || 0));
@@ -612,7 +612,7 @@ function Yonetici({ onBackToHome, onNavigate }) {
         list.sort((a, b) => (b.originalBorc || 0) - (a.originalBorc || 0));
       }
       return list;
-    }, [filteredBorclar, borcSort]);
+    })();
 
     const renderAcikBorclarContent = () => (
       <div>
@@ -783,7 +783,7 @@ function Yonetici({ onBackToHome, onNavigate }) {
         return acc;
       }, {});
 
-      // Transform to array and apply search/sort
+      // Transform to array and apply search/sort (no hooks inside)
       let groups = Object.values(groupedPayments).map(({ debt, payments }) => ({
         debt,
         payments
