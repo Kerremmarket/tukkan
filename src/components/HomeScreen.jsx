@@ -501,8 +501,8 @@ function HomeScreen() {
         display: 'flex', 
         justifyContent: 'space-between', 
         width: '100%',
-        maxWidth: '1200px',
-        gap: '2rem',
+        maxWidth: '100%',
+        gap: '1.5rem',
         flex: 1
       }}>
         <div style={{ 

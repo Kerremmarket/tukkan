@@ -92,7 +92,7 @@ function Islemler({ onBackToHome, onNavigate }) {
   };
 
   const daysUntil = (dateStr) => {
-    if (!dateStr) return '';
+    if (!dateStr) return null;
     const today = new Date();
     const target = new Date(dateStr);
     const diff = Math.ceil((target - new Date(today.toDateString())) / (1000 * 60 * 60 * 24));
