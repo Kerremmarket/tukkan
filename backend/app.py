@@ -8,6 +8,13 @@ import urllib.request
 import urllib.parse
 import json as _json
 
+# Load environment variables
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not available, will use system env vars
+
 # Set up Flask to serve static files from the dist directory
 static_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'dist')
 app = Flask(__name__, static_folder=static_folder, static_url_path='')
