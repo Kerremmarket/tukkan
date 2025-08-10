@@ -1042,7 +1042,7 @@ function HomeScreen() {
                       <div>Mail Order: {p.isMail ? 'Evet' : 'Hayır'}</div>
                     </div>
                   </div>
-                  <SalePhotos saleId={selectedPayment.transaction_id} />
+                  <SalePhotos saleId={s.id} />
                 </div>
               );
             })()}

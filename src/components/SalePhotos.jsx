@@ -2,13 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { buildApiUrl } from '../config/api.js';
 
 const SalePhotos = ({ saleId }) => {
+  // Add basic prop validation
+  if (typeof saleId !== 'number' && saleId !== undefined && saleId !== null) {
+    console.warn('SalePhotos: saleId should be a number, received:', typeof saleId, saleId);
+  }
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!saleId) {
+    if (!saleId || saleId === undefined || saleId === null) {
       setLoading(false);
+      setPhotos([]);
       return;
     }
 
@@ -17,14 +22,23 @@ const SalePhotos = ({ saleId }) => {
         setLoading(true);
         setError(null);
         
+        console.log('Fetching photos for sale ID:', saleId);
         const url = buildApiUrl('/api/sales', `${saleId}/media`);
+        console.log('API URL:', url);
+        
         const response = await fetch(url);
         
         if (!response.ok) {
+          if (response.status === 404) {
+            // No photos found, not an error
+            setPhotos([]);
+            return;
+          }
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         
         const data = await response.json();
+        console.log('Photo data received:', data);
         setPhotos(data.files || []);
       } catch (err) {
         console.error('Error fetching photos:', err);
