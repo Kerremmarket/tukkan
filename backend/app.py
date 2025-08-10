@@ -331,7 +331,7 @@ def telegram_webhook():
     except Exception:
         return jsonify({'status': 'ignored'}), 200
 
-    message = update.get('message') or update.get('edited_message')
+    message = (update.get('message') or update.get('edited_message')) if isinstance(update, dict) else None
     if not message:
         return jsonify({'status': 'ok'})
 
