@@ -12,7 +12,9 @@ function HomeScreen() {
   const [overduePayments, setOverduePayments] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
   const [deliveriesSearch, setDeliveriesSearch] = useState('');
-  const [deliveriesSort, setDeliveriesSort] = useState('days'); // 'days' | 'customer' | 'ready'
+  const [deliveriesSort, setDeliveriesSort] = useState('days');
+  const [saleDetail, setSaleDetail] = useState({ show: false, sale: null });
+  const [transactions, setTransactions] = useState([]); // 'days' | 'customer' | 'ready'
   const [paymentAmounts, setPaymentAmounts] = useState({}); // Track payment amounts for each payment
   const [allPayments, setAllPayments] = useState([]); // All beklenen ödemeler
   const [paymentsSearch, setPaymentsSearch] = useState(''); // Search term for payments
@@ -96,6 +98,55 @@ function HomeScreen() {
   
   // TODO: Make overdue threshold configurable instead of hardcoded
   const OVERDUE_THRESHOLD_DAYS = 30;
+
+  // Helper functions for sale detail modal
+  const extractTransactionId = (description, fallbackId, type) => {
+    if (!description) return `${type === 'satis' ? 'SAT' : 'ALS'}-${fallbackId}`;
+    
+    // Look for "Satış ID: SAT-YYMMDD-HHMMSS" pattern
+    const match = description.match(/Satış ID: (SAT-\d{6}-\d{6})/);
+    if (match) {
+      return match[1];
+    }
+    
+    // Look for "Alış ID: ALIS-YYMMDD-HHMMSS" or any transaction ID pattern
+    const purchaseMatch = description.match(/Alış ID: ([^,]+)/);
+    if (purchaseMatch) {
+      return purchaseMatch[1].trim();
+    }
+    
+    // Fallback to database ID format
+    return `${type === 'satis' ? 'SAT' : 'ALS'}-${fallbackId}`;
+  };
+
+  const extractDeliveryDate = (description) => {
+    if (!description) return '';
+    const m = description.match(/Teslim: (\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : '';
+  };
+
+  const buildPaymentDetails = (sale) => {
+    const desc = sale.aciklama || '';
+    const pesinAmount = sale.pesin_miktar || 0;
+    const taksitAmount = sale.taksit_miktar || 0;
+    const taksitCount = sale.taksit_sayisi || 0;
+    const pesinType = desc.includes('Pesin_Odeme_Tipi: kart') ? 'Kart' : 'Nakit';
+    const taksitType = desc.includes('Taksit_Odeme_Tipi: kart') ? 'Kart' : 'Nakit';
+    const isMail = desc.includes('Mail_Order: true') || sale.odeme_tipi === 'mail order';
+    return {
+      pesinAmount,
+      taksitAmount,
+      taksitCount,
+      pesinType,
+      taksitType,
+      isMail
+    };
+  };
+
+  const formatNumber = (num) => {
+    if (num === null || num === undefined) return '0';
+    return Number(num).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
 
 
 
@@ -270,6 +321,21 @@ function HomeScreen() {
     }
   };
 
+  // Fetch transactions data from backend
+  const fetchTransactions = async () => {
+    try {
+      const response = await fetch(API_ENDPOINTS.ISLEMLER);
+      if (response.ok) {
+        const data = await response.json();
+        setTransactions(data);
+      } else {
+        console.error('Failed to fetch transactions:', response.status);
+      }
+    } catch (error) {
+      console.error('Error fetching transactions:', error);
+    }
+  };
+
   // Fetch inventory data from backend
   useEffect(() => {
     const fetchInventory = async () => {
@@ -298,6 +364,7 @@ function HomeScreen() {
     };
 
     fetchInventory();
+    fetchTransactions();
   }, []);
 
   useEffect(() => {
@@ -886,7 +953,18 @@ function HomeScreen() {
                   padding: '1rem',
                   marginBottom: '0.75rem'
                 }}
-                onClick={() => alert(`İşlem Detayı\n\nİşlem Kodu: ${d.islemKodu}\nMüşteri: ${d.musteri}\nTeslim: ${d.teslimGunu}`)}
+                onClick={() => {
+                  // Find the sale from transactions based on the transaction code
+                  const saleTransaction = transactions.find(t => {
+                    const txId = extractTransactionId(t.aciklama, t.id, 'satis');
+                    return txId === d.islemKodu && t.islem_tipi === 'satis';
+                  });
+                  if (saleTransaction) {
+                    setSaleDetail({ show: true, sale: saleTransaction });
+                  } else {
+                    alert(`İşlem Detayı\n\nİşlem Kodu: ${d.islemKodu}\nMüşteri: ${d.musteri}\nTeslim: ${d.teslimGunu}`);
+                  }
+                }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
@@ -919,6 +997,62 @@ function HomeScreen() {
           </div>
         </div>
       </div>
+
+      {/* Sale Detail Modal */}
+      {saleDetail.show && saleDetail.sale && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 3000
+        }}>
+          <div style={{ backgroundColor: '#2a2a2a', color: '#fff', borderRadius: '10px', width: '700px', maxWidth: '95%', padding: '1.25rem' }}>
+            {(() => {
+              const s = saleDetail.sale;
+              const tx = extractTransactionId(s.aciklama, s.id, 'satis');
+              const teslim = extractDeliveryDate(s.aciklama);
+              const p = buildPaymentDetails(s);
+              return (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                    <h3 style={{ margin: 0, color: '#4dabf7' }}>Satış Detayı — {tx}</h3>
+                    <button onClick={() => setSaleDetail({ show: false, sale: null })} style={{ background: 'none', border: '1px solid #555', color: '#fff', borderRadius: '6px', padding: '0.25rem 0.5rem', cursor: 'pointer' }}>Kapat</button>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                    <div style={{ background: '#1a1a1a', border: '1px solid #444', borderRadius: '6px', padding: '0.75rem' }}>
+                      <div style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Ürün</div>
+                      <div>Ürün Kodu: {s.urun_kodu}</div>
+                      <div>Miktar: {formatNumber(s.miktar)} m</div>
+                      <div>Birim Fiyat: {formatNumber(s.birim_fiyat)} ₺</div>
+                      <div>Toplam: {formatNumber(s.toplam_tutar)} ₺</div>
+                      {teslim && <div>Teslim: {teslim}</div>}
+                    </div>
+                    <div style={{ background: '#1a1a1a', border: '1px solid #444', borderRadius: '6px', padding: '0.75rem' }}>
+                      <div style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Ödeme Detayı</div>
+                      <div>Peşin: {formatNumber(p.pesinAmount)} ₺ ({p.pesinType})</div>
+                      <div>Taksit: {formatNumber(p.taksitAmount)} ₺ ({p.taksitType})</div>
+                      <div>Taksit Sayısı: {p.taksitCount}</div>
+                      <div>Mail Order: {p.isMail ? 'Evet' : 'Hayır'}</div>
+                    </div>
+                  </div>
+                  <div style={{ background: '#1a1a1a', border: '1px solid #444', borderRadius: '6px', padding: '0.75rem', textAlign: 'center' }}>
+                    <div style={{ marginBottom: '0.5rem', fontWeight: '600' }}>Görsel</div>
+                    <div style={{ height: '160px', background: '#333', border: '1px dashed #555', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888' }}>
+                      [Görsel yer tutucu]
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
