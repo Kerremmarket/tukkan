@@ -350,9 +350,12 @@ function HomeScreen() {
   // Fetch transactions data from backend
   const fetchTransactions = async () => {
     try {
+      console.log('Fetching transactions...');
       const response = await fetch(API_ENDPOINTS.ISLEMLER);
       if (response.ok) {
         const data = await response.json();
+        console.log('Transactions loaded:', data.length, 'transactions');
+        console.log('Sample transaction:', data[0]);
         setTransactions(data);
       } else {
         console.error('Failed to fetch transactions:', response.status);
@@ -1001,15 +1004,23 @@ function HomeScreen() {
                   marginBottom: '0.75rem'
                 }}
                 onClick={() => {
+                  console.log('Delivery clicked:', d);
+                  console.log('Transactions available:', transactions.length);
+                  console.log('Looking for transaction code:', d.islemKodu);
+                  
                   // Find the sale from transactions and show detail modal right here
                   const saleTransaction = transactions.find(t => {
                     const txId = extractTransactionId(t.aciklama, t.id, 'satis');
+                    console.log(`Checking transaction ${t.id}: ${txId} === ${d.islemKodu}?`, txId === d.islemKodu);
                     return txId === d.islemKodu && t.islem_tipi === 'satis';
                   });
+                  
+                  console.log('Found transaction:', saleTransaction);
+                  
                   if (saleTransaction) {
                     setSaleDetail({ show: true, sale: saleTransaction });
                   } else {
-                    alert(`İşlem Detayı bulunamadı\n\nİşlem Kodu: ${d.islemKodu}\nMüşteri: ${d.musteri}\nTeslim: ${d.teslimGunu}`);
+                    alert(`İşlem Detayı bulunamadı\n\nİşlem Kodu: ${d.islemKodu}\nMüşteri: ${d.musteri}\nTeslim: ${d.teslimGunu}\n\nTransactions available: ${transactions.length}`);
                   }
                 }}
                 >
