@@ -321,129 +321,135 @@ def get_db_connection():
 
 @app.route('/webhook/telegram', methods=['POST'])
 def telegram_webhook():
-    # Verify secret header
-    secret = request.headers.get('X-Telegram-Bot-Api-Secret-Token', '')
-    if TELEGRAM_SECRET_TOKEN and secret != TELEGRAM_SECRET_TOKEN:
-        return jsonify({'error': 'forbidden'}), 403
-
     try:
-        update = request.get_json(silent=True) or {}
-    except Exception:
-        return jsonify({'status': 'ignored'}), 200
+        # Verify secret header
+        secret = request.headers.get('X-Telegram-Bot-Api-Secret-Token', '')
+        if TELEGRAM_SECRET_TOKEN and secret != TELEGRAM_SECRET_TOKEN:
+            return jsonify({'error': 'forbidden'}), 403
 
-    message = (update.get('message') or update.get('edited_message')) if isinstance(update, dict) else None
-    if not message:
-        return jsonify({'status': 'ok'})
-
-    chat = message.get('chat', {})
-    chat_id = chat.get('id')
-    if chat_id is None:
-        return jsonify({'status': 'ok'})
-
-    state = get_chat_state(chat_id)
-
-    def send_text(text):
-        if not TELEGRAM_BOT_TOKEN:
-            return
-        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-        data = _json.dumps({'chat_id': chat_id, 'text': text}).encode('utf-8')
-        req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'})
         try:
-            urllib.request.urlopen(req, timeout=10)
+            update = request.get_json(silent=True) or {}
         except Exception:
-            pass
+            return jsonify({'status': 'ignored'}), 200
 
-    # onboarding with password
-    text = message.get('text')
-    photos = message.get('photo')
-
-    if not state.get('verified'):
-        # Accept "/start 1923" or plain "1923"
-        pwd = (text or '').strip().split(' ')
-        supplied = pwd[-1] if pwd else ''
-        if BOT_ACCESS_PASSWORD and supplied == BOT_ACCESS_PASSWORD:
-            set_chat_state(chat_id, verified=True)
-            send_text('✅ Doğrulama başarılı. Bir fotoğraf gönderin; ardından işlem kodunu yazın (ör: SAT-YYMMDD-HHMMSS).')
-        else:
-            send_text('🔒 Erişim için parola gönderin.')
-        return jsonify({'status': 'ok'})
-
-    # Handle incoming photo
-    if photos:
-        # Pick highest resolution
-        file_id = sorted(photos, key=lambda p: p.get('file_size', 0))[-1]['file_id']
-        set_chat_state(chat_id, pending_photo_file_id=file_id, awaiting_code=True)
-        send_text('📷 Fotoğraf alındı. Hangi işlem? (örn: SAT-YYMMDD-HHMMSS)')
-        return jsonify({'status': 'ok'})
-
-    # Handle transaction code
-    if state.get('awaiting_code') and text:
-        code = text.strip()
-        file_id = state.get('pending_photo_file_id')
-        if not file_id:
-            send_text('Lütfen önce fotoğraf gönderin.')
+        message = (update.get('message') or update.get('edited_message')) if isinstance(update, dict) else None
+        if not message:
             return jsonify({'status': 'ok'})
 
-        # Find matching sale by code in islemler.aciklama
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT id, aciklama FROM islemler
-            WHERE islem_tipi='satis' AND (
-              aciklama LIKE '%' || ? || '%' OR
-              aciklama LIKE '%Satış ID: ' || ? || '%'
-            )
-            ORDER BY created_at DESC
-            LIMIT 1
-        """, (code, code))
-        row = cur.fetchone()
-        if not row:
+        chat = message.get('chat', {})
+        chat_id = chat.get('id')
+        if chat_id is None:
+            return jsonify({'status': 'ok'})
+
+        state = get_chat_state(chat_id)
+
+        def send_text(text):
+            if not TELEGRAM_BOT_TOKEN:
+                return
+            url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+            data = _json.dumps({'chat_id': chat_id, 'text': text}).encode('utf-8')
+            req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'})
+            try:
+                urllib.request.urlopen(req, timeout=10)
+            except Exception:
+                pass
+
+        # onboarding with password
+        text = message.get('text')
+        photos = message.get('photo')
+
+        if not state.get('verified'):
+            # Accept "/start 1923" or plain "1923"
+            pwd = (text or '').strip().split(' ')
+            supplied = pwd[-1] if pwd else ''
+            if BOT_ACCESS_PASSWORD and supplied == BOT_ACCESS_PASSWORD:
+                set_chat_state(chat_id, verified=True)
+                send_text('✅ Doğrulama başarılı. Bir fotoğraf gönderin; ardından işlem kodunu yazın (ör: SAT-YYMMDD-HHMMSS).')
+            else:
+                send_text('🔒 Erişim için parola gönderin.')
+            return jsonify({'status': 'ok'})
+
+        # Handle incoming photo
+        if photos:
+            # Pick highest resolution
+            file_id = sorted(photos, key=lambda p: p.get('file_size', 0))[-1]['file_id']
+            set_chat_state(chat_id, pending_photo_file_id=file_id, awaiting_code=True)
+            send_text('📷 Fotoğraf alındı. Hangi işlem? (örn: SAT-YYMMDD-HHMMSS)')
+            return jsonify({'status': 'ok'})
+
+        # Handle transaction code
+        if state.get('awaiting_code') and text:
+            code = text.strip()
+            file_id = state.get('pending_photo_file_id')
+            if not file_id:
+                send_text('Lütfen önce fotoğraf gönderin.')
+                return jsonify({'status': 'ok'})
+
+            # Find matching sale by code in islemler.aciklama
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT id, aciklama FROM islemler
+                WHERE islem_tipi='satis' AND (
+                  aciklama LIKE '%' || ? || '%' OR
+                  aciklama LIKE '%Satış ID: ' || ? || '%'
+                )
+                ORDER BY created_at DESC
+                LIMIT 1
+            """, (code, code))
+            row = cur.fetchone()
+            if not row:
+                conn.close()
+                send_text('❌ İşlem bulunamadı. Lütfen kodu kontrol edin.')
+                return jsonify({'status': 'ok'})
+
+            sale_id = row['id']
+
+            # Download file from Telegram
+            try:
+                # getFile
+                q = urllib.parse.urlencode({'file_id': file_id})
+                with urllib.request.urlopen(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getFile?{q}", timeout=10) as resp:
+                    file_info = _json.loads(resp.read().decode('utf-8'))
+                file_path = file_info.get('result', {}).get('file_path')
+                if not file_path:
+                    raise Exception('no file_path')
+                file_url = f"https://api.telegram.org/file/bot{TELEGRAM_BOT_TOKEN}/{file_path}"
+                with urllib.request.urlopen(file_url, timeout=15) as f:
+                    image_bytes = f.read()
+            except Exception:
+                conn.close()
+                send_text('❌ Görsel indirilemedi.')
+                return jsonify({'status': 'ok'})
+
+            # Save under backend/media/sales/<sale_id>/
+            media_root = os.path.join(os.path.dirname(__file__), 'media', 'sales', str(sale_id))
+            os.makedirs(media_root, exist_ok=True)
+            filename = datetime.now().strftime('%Y%m%d_%H%M%S') + '.jpg'
+            filepath = os.path.join(media_root, filename)
+            try:
+                with open(filepath, 'wb') as f:
+                    f.write(image_bytes)
+            except Exception:
+                conn.close()
+                send_text('❌ Görsel kaydedilemedi.')
+                return jsonify({'status': 'ok'})
+
+            # Optionally store path in a new table sale_media (skip schema change for now)
+            # Respond success
             conn.close()
-            send_text('❌ İşlem bulunamadı. Lütfen kodu kontrol edin.')
+            set_chat_state(chat_id, pending_photo_file_id=None, awaiting_code=False)
+            send_text('✅ Görsel işlemle eşleştirildi.')
             return jsonify({'status': 'ok'})
 
-        sale_id = row['id']
-
-        # Download file from Telegram
-        try:
-            # getFile
-            q = urllib.parse.urlencode({'file_id': file_id})
-            with urllib.request.urlopen(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getFile?{q}", timeout=10) as resp:
-                file_info = _json.loads(resp.read().decode('utf-8'))
-            file_path = file_info.get('result', {}).get('file_path')
-            if not file_path:
-                raise Exception('no file_path')
-            file_url = f"https://api.telegram.org/file/bot{TELEGRAM_BOT_TOKEN}/{file_path}"
-            with urllib.request.urlopen(file_url, timeout=15) as f:
-                image_bytes = f.read()
-        except Exception:
-            conn.close()
-            send_text('❌ Görsel indirilemedi.')
-            return jsonify({'status': 'ok'})
-
-        # Save under backend/media/sales/<sale_id>/
-        media_root = os.path.join(os.path.dirname(__file__), 'media', 'sales', str(sale_id))
-        os.makedirs(media_root, exist_ok=True)
-        filename = datetime.now().strftime('%Y%m%d_%H%M%S') + '.jpg'
-        filepath = os.path.join(media_root, filename)
-        try:
-            with open(filepath, 'wb') as f:
-                f.write(image_bytes)
-        except Exception:
-            conn.close()
-            send_text('❌ Görsel kaydedilemedi.')
-            return jsonify({'status': 'ok'})
-
-        # Optionally store path in a new table sale_media (skip schema change for now)
-        # Respond success
-        conn.close()
-        set_chat_state(chat_id, pending_photo_file_id=None, awaiting_code=False)
-        send_text('✅ Görsel işlemle eşleştirildi.')
+        # Fallback
+        send_text('📨 Fotoğraf gönderin; ardından işlem kodunu yazın (ör: SAT-YYMMDD-HHMMSS).')
         return jsonify({'status': 'ok'})
-
-    # Fallback
-    send_text('📨 Fotoğraf gönderin; ardından işlem kodunu yazın (ör: SAT-YYMMDD-HHMMSS).')
-    return jsonify({'status': 'ok'})
+    
+    except Exception as e:
+        # Log error and return 200 to prevent Telegram from retrying
+        print(f"Telegram webhook error: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 200
 
 # Alternate path under /api to avoid static-file conflicts on some hosts
 @app.route('/api/webhook/telegram', methods=['POST'])
