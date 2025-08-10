@@ -73,43 +73,7 @@ function Envanter({ onBackToHome, onNavigate, inventoryItems, setInventoryItems 
     }
   };
 
-  // Reset inventory to original data
-  const handleReset = async () => {
-    if (window.confirm('Envanteri orijinal haline sıfırlamak istediğinizden emin misiniz? Bu işlem geri alınamaz.')) {
-      try {
-        const response = await fetch(API_ENDPOINTS.ENVANTER_RESET, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        });
 
-        if (response.ok) {
-          // Reload inventory data from backend
-          const inventoryResponse = await fetch(API_ENDPOINTS.ENVANTER);
-          if (inventoryResponse.ok) {
-            const data = await inventoryResponse.json();
-            const formattedData = data.map(item => ({
-              id: item.id,
-              urunKodu: item.urun_kodu,
-              metre: item.metre,
-              metreMaliyet: item.metre_maliyet,
-              fiyat: item.fiyat,
-              sonIslemTarihi: item.son_islem_tarihi,
-              son30GunIslem: item.son_30_gun_islem
-            }));
-            setInventoryItems(formattedData);
-            setDeletedItems([]); // Clear deleted items
-            console.log('Inventory reset successfully');
-          }
-        } else {
-          console.error('Failed to reset inventory:', response.status);
-        }
-      } catch (error) {
-        console.error('Error resetting inventory:', error);
-      }
-    }
-  };
 
   // Delete function
   const handleDelete = async (item) => {
@@ -474,21 +438,7 @@ function Envanter({ onBackToHome, onNavigate, inventoryItems, setInventoryItems 
                 ↶ Geri Al ({deletedItems.length})
               </button>
 
-              {/* Reset Button */}
-              <button
-                onClick={handleReset}
-                style={{
-                  padding: '0.8rem 1.5rem',
-                  backgroundColor: '#dc3545',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '0.9rem',
-                  fontWeight: '500'
-                }}>
-                🔄 Sıfırla
-              </button>
+
             </div>
 
             {/* Results Info */}

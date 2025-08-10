@@ -25,7 +25,6 @@ export const API_ENDPOINTS = {
   
   // Inventory endpoints
   ENVANTER: `${API_BASE_URL}/api/envanter`,
-  ENVANTER_RESET: `${API_BASE_URL}/api/envanter/reset`,
   
   // Transaction endpoints
   ISLEMLER: `${API_BASE_URL}/api/islemler`,
