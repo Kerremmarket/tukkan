@@ -345,38 +345,56 @@ def telegram_webhook_api():
 
 def telegram_webhook_handler():
     """Main telegram webhook handler with comprehensive error handling"""
+    print(f"[WEBHOOK] Starting webhook handler at {datetime.now()}")
+    
     try:
+        # Log environment variables status
+        print(f"[WEBHOOK] TELEGRAM_BOT_TOKEN exists: {bool(TELEGRAM_BOT_TOKEN)}")
+        print(f"[WEBHOOK] TELEGRAM_SECRET_TOKEN: '{TELEGRAM_SECRET_TOKEN}'")
+        print(f"[WEBHOOK] BOT_ACCESS_PASSWORD exists: {bool(BOT_ACCESS_PASSWORD)}")
+        
         # Verify secret header
         secret = request.headers.get('X-Telegram-Bot-Api-Secret-Token', '')
+        print(f"[WEBHOOK] Received secret header: '{secret}'")
+        
         if TELEGRAM_SECRET_TOKEN and secret != TELEGRAM_SECRET_TOKEN:
+            print(f"[WEBHOOK] Secret mismatch - returning 403")
             return jsonify({'error': 'forbidden'}), 403
 
         # Parse update safely
+        print(f"[WEBHOOK] Attempting to parse JSON request")
         try:
             update = request.get_json(silent=True) or {}
+            print(f"[WEBHOOK] Parsed update keys: {list(update.keys()) if isinstance(update, dict) else 'Not a dict'}")
         except Exception as e:
-            print(f"JSON parsing error: {e}")
+            print(f"[WEBHOOK] JSON parsing error: {e}")
             return jsonify({'status': 'ignored'}), 200
 
         # Extract message safely
         message = None
         if isinstance(update, dict):
             message = update.get('message') or update.get('edited_message')
+            print(f"[WEBHOOK] Message found: {bool(message)}")
         
         if not message:
+            print(f"[WEBHOOK] No message in update - returning ok")
             return jsonify({'status': 'ok'})
 
         # Extract chat info
         chat = message.get('chat', {})
         chat_id = chat.get('id')
+        print(f"[WEBHOOK] Chat ID: {chat_id}")
+        
         if not chat_id:
+            print(f"[WEBHOOK] No chat ID - returning ok")
             return jsonify({'status': 'ok'})
 
         # Get chat state
         try:
             state = get_chat_state(chat_id)
+            print(f"[WEBHOOK] Chat state retrieved: {state}")
         except Exception as e:
-            print(f"Chat state error: {e}")
+            print(f"[WEBHOOK] Chat state error: {e}")
             return jsonify({'status': 'ok'})
 
         # Helper function to send messages
@@ -493,15 +511,36 @@ def telegram_webhook_handler():
         return jsonify({'status': 'ok'})
 
     except Exception as e:
-        print(f"Webhook error: {str(e)}")
+        print(f"[WEBHOOK] CRITICAL ERROR: {str(e)}")
         import traceback
-        print(f"Traceback: {traceback.format_exc()}")
-        return jsonify({'status': 'error', 'message': 'Internal error'}), 200
+        print(f"[WEBHOOK] TRACEBACK: {traceback.format_exc()}")
+        # Return 200 with error details for debugging
+        return jsonify({
+            'status': 'error', 
+            'message': 'Internal error',
+            'error_type': str(type(e).__name__),
+            'error_details': str(e),
+            'timestamp': str(datetime.now())
+        }), 200
 
 # Simple test endpoint
 @app.route('/api/test', methods=['GET', 'POST'])
 def test_endpoint():
     return jsonify({'status': 'ok', 'message': 'test works'}), 200
+
+# Debug endpoint to check environment and basic functionality
+@app.route('/api/debug', methods=['GET'])
+def debug_endpoint():
+    return jsonify({
+        'status': 'debug_info',
+        'telegram_bot_token_exists': bool(TELEGRAM_BOT_TOKEN),
+        'telegram_secret_token': TELEGRAM_SECRET_TOKEN,
+        'bot_access_password_exists': bool(BOT_ACCESS_PASSWORD),
+        'database_path': DATABASE_PATH,
+        'database_exists': os.path.exists(DATABASE_PATH),
+        'python_version': f"{__import__('sys').version_info.major}.{__import__('sys').version_info.minor}",
+        'timestamp': str(datetime.now())
+    }), 200
 
 @app.route('/api/acik-borclar', methods=['GET'])
 def get_acik_borclar():
