@@ -438,6 +438,11 @@ def telegram_webhook():
     send_text('📨 Fotoğraf gönderin; ardından işlem kodunu yazın (ör: SAT-YYMMDD-HHMMSS).')
     return jsonify({'status': 'ok'})
 
+# Alternate path under /api to avoid static-file conflicts on some hosts
+@app.route('/api/webhook/telegram', methods=['POST'])
+def telegram_webhook_api():
+    return telegram_webhook()
+
 @app.route('/api/acik-borclar', methods=['GET'])
 def get_acik_borclar():
     """Get all açık borçlar"""
