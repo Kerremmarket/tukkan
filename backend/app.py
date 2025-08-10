@@ -4,6 +4,7 @@ import sqlite3
 import os
 from datetime import datetime, timedelta
 import json
+import requests
 
 # Set up Flask to serve static files from the dist directory
 static_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'dist')
@@ -12,6 +13,23 @@ CORS(app)  # Enable CORS for React frontend
 
 # Database configuration
 DATABASE_PATH = os.path.join(os.path.dirname(__file__), 'tukkan.db')
+# Telegram config
+TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
+TELEGRAM_SECRET_TOKEN = os.environ.get('TELEGRAM_SECRET_TOKEN', '')
+BOT_ACCESS_PASSWORD = os.environ.get('BOT_ACCESS_PASSWORD', '')
+
+# Simple in-process chat state cache (optional). For production, persist in DB/Redis
+chat_states = {}
+
+def get_chat_state(chat_id: int) -> dict:
+    state = chat_states.get(chat_id) or { 'verified': False, 'pending_photo_file_id': None, 'awaiting_code': False }
+    chat_states[chat_id] = state
+    return state
+
+def set_chat_state(chat_id: int, **patch):
+    state = get_chat_state(chat_id)
+    state.update(patch)
+
 
 # Feature flags / behavior toggles
 # If False, beklenen ödemeler payments will NOT be written into cash flow (giriş)
@@ -298,6 +316,127 @@ def get_db_connection():
     return conn
 
 # API Routes
+
+@app.route('/webhook/telegram', methods=['POST'])
+def telegram_webhook():
+    # Verify secret header
+    secret = request.headers.get('X-Telegram-Bot-Api-Secret-Token', '')
+    if TELEGRAM_SECRET_TOKEN and secret != TELEGRAM_SECRET_TOKEN:
+        return jsonify({'error': 'forbidden'}), 403
+
+    try:
+        update = request.get_json(force=True)
+    except Exception:
+        return jsonify({'status': 'ignored'}), 200
+
+    message = update.get('message') or update.get('edited_message')
+    if not message:
+        return jsonify({'status': 'ok'})
+
+    chat = message.get('chat', {})
+    chat_id = chat.get('id')
+    if chat_id is None:
+        return jsonify({'status': 'ok'})
+
+    state = get_chat_state(chat_id)
+
+    def send_text(text):
+        if not TELEGRAM_BOT_TOKEN:
+            return
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        try:
+            requests.post(url, json={'chat_id': chat_id, 'text': text})
+        except Exception:
+            pass
+
+    # onboarding with password
+    text = message.get('text')
+    photos = message.get('photo')
+
+    if not state.get('verified'):
+        # Accept "/start 1923" or plain "1923"
+        pwd = (text or '').strip().split(' ')
+        supplied = pwd[-1] if pwd else ''
+        if BOT_ACCESS_PASSWORD and supplied == BOT_ACCESS_PASSWORD:
+            set_chat_state(chat_id, verified=True)
+            send_text('✅ Doğrulama başarılı. Bir fotoğraf gönderin; ardından işlem kodunu yazın (ör: SAT-YYMMDD-HHMMSS).')
+        else:
+            send_text('🔒 Erişim için parola gönderin.')
+        return jsonify({'status': 'ok'})
+
+    # Handle incoming photo
+    if photos:
+        # Pick highest resolution
+        file_id = sorted(photos, key=lambda p: p.get('file_size', 0))[-1]['file_id']
+        set_chat_state(chat_id, pending_photo_file_id=file_id, awaiting_code=True)
+        send_text('📷 Fotoğraf alındı. Hangi işlem? (örn: SAT-YYMMDD-HHMMSS)')
+        return jsonify({'status': 'ok'})
+
+    # Handle transaction code
+    if state.get('awaiting_code') and text:
+        code = text.strip()
+        file_id = state.get('pending_photo_file_id')
+        if not file_id:
+            send_text('Lütfen önce fotoğraf gönderin.')
+            return jsonify({'status': 'ok'})
+
+        # Find matching sale by code in islemler.aciklama
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT id, aciklama FROM islemler
+            WHERE islem_tipi='satis' AND (
+              aciklama LIKE '%' || ? || '%' OR
+              aciklama LIKE '%Satış ID: ' || ? || '%'
+            )
+            ORDER BY created_at DESC
+            LIMIT 1
+        """, (code, code))
+        row = cur.fetchone()
+        if not row:
+            conn.close()
+            send_text('❌ İşlem bulunamadı. Lütfen kodu kontrol edin.')
+            return jsonify({'status': 'ok'})
+
+        sale_id = row['id']
+
+        # Download file from Telegram
+        try:
+            # getFile
+            file_info = requests.get(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getFile", params={'file_id': file_id}).json()
+            file_path = file_info.get('result', {}).get('file_path')
+            if not file_path:
+                raise Exception('no file_path')
+            file_url = f"https://api.telegram.org/file/bot{TELEGRAM_BOT_TOKEN}/{file_path}"
+            image_bytes = requests.get(file_url, timeout=15).content
+        except Exception:
+            conn.close()
+            send_text('❌ Görsel indirilemedi.')
+            return jsonify({'status': 'ok'})
+
+        # Save under backend/media/sales/<sale_id>/
+        media_root = os.path.join(os.path.dirname(__file__), 'media', 'sales', str(sale_id))
+        os.makedirs(media_root, exist_ok=True)
+        filename = datetime.now().strftime('%Y%m%d_%H%M%S') + '.jpg'
+        filepath = os.path.join(media_root, filename)
+        try:
+            with open(filepath, 'wb') as f:
+                f.write(image_bytes)
+        except Exception:
+            conn.close()
+            send_text('❌ Görsel kaydedilemedi.')
+            return jsonify({'status': 'ok'})
+
+        # Optionally store path in a new table sale_media (skip schema change for now)
+        # Respond success
+        conn.close()
+        set_chat_state(chat_id, pending_photo_file_id=None, awaiting_code=False)
+        send_text('✅ Görsel işlemle eşleştirildi.')
+        return jsonify({'status': 'ok'})
+
+    # Fallback
+    send_text('📨 Fotoğraf gönderin; ardından işlem kodunu yazın (ör: SAT-YYMMDD-HHMMSS).')
+    return jsonify({'status': 'ok'})
 
 @app.route('/api/acik-borclar', methods=['GET'])
 def get_acik_borclar():
