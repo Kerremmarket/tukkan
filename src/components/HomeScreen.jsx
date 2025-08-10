@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import SalePhotos from './SalePhotos.jsx';
+import ErrorBoundary from './ErrorBoundary.jsx';
 import UrunSatis from './UrunSatis';
 import UrunAlis from './UrunAlis';
 import Envanter from './Envanter';
@@ -1042,7 +1043,9 @@ function HomeScreen() {
                       <div>Mail Order: {p.isMail ? 'Evet' : 'Hayır'}</div>
                     </div>
                   </div>
-                  <SalePhotos saleId={s.id} />
+                  <ErrorBoundary>
+                    <SalePhotos saleId={s.id} />
+                  </ErrorBoundary>
                 </div>
               );
             })()}

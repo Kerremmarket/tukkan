@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import SalePhotos from './SalePhotos.jsx';
+import ErrorBoundary from './ErrorBoundary.jsx';
 import { API_ENDPOINTS } from '../config/api.js';
 
 function Islemler({ onBackToHome, onNavigate }) {
@@ -496,7 +497,9 @@ function Islemler({ onBackToHome, onNavigate }) {
                       <div>Mail Order: {p.isMail ? 'Evet' : 'Hayır'}</div>
                     </div>
                   </div>
-                  <SalePhotos saleId={selectedIslem.id} />
+                  <ErrorBoundary>
+                    <SalePhotos saleId={selectedIslem.id} />
+                  </ErrorBoundary>
                 </div>
               );
             })()}
