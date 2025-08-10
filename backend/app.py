@@ -542,6 +542,52 @@ def debug_endpoint():
         'timestamp': str(datetime.now())
     }), 200
 
+# Media serving endpoint for sale photos
+@app.route('/api/media/sales/<int:sale_id>/<filename>')
+def serve_sale_media(sale_id, filename):
+    """Serve media files for sales"""
+    try:
+        media_dir = os.path.join(os.path.dirname(__file__), 'media', 'sales', str(sale_id))
+        if not os.path.exists(media_dir):
+            return jsonify({'error': 'Media directory not found'}), 404
+        
+        file_path = os.path.join(media_dir, filename)
+        if not os.path.exists(file_path):
+            return jsonify({'error': 'File not found'}), 404
+        
+        # Security check - ensure filename doesn't contain path traversal
+        if '..' in filename or '/' in filename or '\\' in filename:
+            return jsonify({'error': 'Invalid filename'}), 400
+        
+        return send_from_directory(media_dir, filename)
+    except Exception as e:
+        return jsonify({'error': f'Error serving media: {str(e)}'}), 500
+
+# API endpoint to list media files for a sale
+@app.route('/api/sales/<int:sale_id>/media', methods=['GET'])
+def get_sale_media(sale_id):
+    """Get list of media files for a sale"""
+    try:
+        media_dir = os.path.join(os.path.dirname(__file__), 'media', 'sales', str(sale_id))
+        if not os.path.exists(media_dir):
+            return jsonify({'files': []})
+        
+        files = []
+        for filename in os.listdir(media_dir):
+            if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')):
+                file_path = os.path.join(media_dir, filename)
+                file_stats = os.stat(file_path)
+                files.append({
+                    'filename': filename,
+                    'url': f'/api/media/sales/{sale_id}/{filename}',
+                    'size': file_stats.st_size,
+                    'created_at': datetime.fromtimestamp(file_stats.st_ctime).isoformat()
+                })
+        
+        return jsonify({'files': files})
+    except Exception as e:
+        return jsonify({'error': f'Error listing media: {str(e)}'}), 500
+
 @app.route('/api/acik-borclar', methods=['GET'])
 def get_acik_borclar():
     """Get all açık borçlar"""

@@ -42,7 +42,11 @@ export const API_ENDPOINTS = {
   CALISANLAR: `${API_BASE_URL}/api/calisanlar`,
   
   // Other endpoints
-  HEALTH: `${API_BASE_URL}/api/health`
+  HEALTH: `${API_BASE_URL}/api/health`,
+  
+  // Media endpoints
+  SALE_MEDIA: `${API_BASE_URL}/api/sales`,  // Use with buildApiUrl for /api/sales/{id}/media
+  MEDIA_SERVE: `${API_BASE_URL}/api/media/sales`  // Use with buildApiUrl for /api/media/sales/{id}/{filename}
 };
 
 // Helper functions for dynamic URLs
