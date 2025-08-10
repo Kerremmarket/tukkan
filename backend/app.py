@@ -4,7 +4,9 @@ import sqlite3
 import os
 from datetime import datetime, timedelta
 import json
-import requests
+import urllib.request
+import urllib.parse
+import json as _json
 
 # Set up Flask to serve static files from the dist directory
 static_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'dist')
@@ -344,8 +346,10 @@ def telegram_webhook():
         if not TELEGRAM_BOT_TOKEN:
             return
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        data = _json.dumps({'chat_id': chat_id, 'text': text}).encode('utf-8')
+        req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'})
         try:
-            requests.post(url, json={'chat_id': chat_id, 'text': text})
+            urllib.request.urlopen(req, timeout=10)
         except Exception:
             pass
 
@@ -403,12 +407,15 @@ def telegram_webhook():
         # Download file from Telegram
         try:
             # getFile
-            file_info = requests.get(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getFile", params={'file_id': file_id}).json()
+            q = urllib.parse.urlencode({'file_id': file_id})
+            with urllib.request.urlopen(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getFile?{q}", timeout=10) as resp:
+                file_info = _json.loads(resp.read().decode('utf-8'))
             file_path = file_info.get('result', {}).get('file_path')
             if not file_path:
                 raise Exception('no file_path')
             file_url = f"https://api.telegram.org/file/bot{TELEGRAM_BOT_TOKEN}/{file_path}"
-            image_bytes = requests.get(file_url, timeout=15).content
+            with urllib.request.urlopen(file_url, timeout=15) as f:
+                image_bytes = f.read()
         except Exception:
             conn.close()
             send_text('❌ Görsel indirilemedi.')
