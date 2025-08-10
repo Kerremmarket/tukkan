@@ -3,7 +3,7 @@ import SalePhotos from './SalePhotos.jsx';
 import ErrorBoundary from './ErrorBoundary.jsx';
 import { API_ENDPOINTS } from '../config/api.js';
 
-function Islemler({ onBackToHome, onNavigate, autoOpenTransactionCode }) {
+function Islemler({ onBackToHome, onNavigate }) {
   const [salesSearch, setSalesSearch] = useState('');
   const [purchasesSearch, setPurchasesSearch] = useState('');
   const [transactions, setTransactions] = useState([]);
@@ -162,27 +162,6 @@ function Islemler({ onBackToHome, onNavigate, autoOpenTransactionCode }) {
 
     fetchData();
   }, []);
-
-  // Auto-open transaction if specified
-  useEffect(() => {
-    if (autoOpenTransactionCode && transactions.length > 0) {
-      console.log('Auto-opening transaction:', autoOpenTransactionCode);
-      
-      // Find the sale with matching transaction code
-      const sale = transactions.find(t => {
-        if (t.islem_tipi !== 'satis') return false;
-        const txId = extractTransactionId(t.aciklama, t.id, 'satis');
-        return txId === autoOpenTransactionCode;
-      });
-      
-      if (sale) {
-        console.log('Found sale to auto-open:', sale);
-        setSaleDetail({ show: true, sale });
-      } else {
-        console.log('Could not find sale with transaction code:', autoOpenTransactionCode);
-      }
-    }
-  }, [autoOpenTransactionCode, transactions]);
 
   // Separate sales and purchases
   const salesData = transactions.filter(t => t.islem_tipi === 'satis');

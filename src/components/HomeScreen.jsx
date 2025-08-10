@@ -10,7 +10,6 @@ import { API_ENDPOINTS } from '../config/api.js';
 
 function HomeScreen() {
   const [currentPage, setCurrentPage] = useState('home');
-  const [selectedTransactionCode, setSelectedTransactionCode] = useState(null);
   const [posts, setPosts] = useState([]);
   const [overduePayments, setOverduePayments] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
@@ -475,14 +474,7 @@ function HomeScreen() {
   }
 
   if (currentPage === 'islemler') {
-    return <Islemler 
-      onBackToHome={() => {
-        setCurrentPage('home');
-        setSelectedTransactionCode(null);
-      }} 
-      onNavigate={setCurrentPage}
-      autoOpenTransactionCode={selectedTransactionCode}
-    />;
+    return <Islemler onBackToHome={() => setCurrentPage('home')} onNavigate={setCurrentPage} />;
   }
 
   if (currentPage === 'yonetici') {
@@ -1009,9 +1001,16 @@ function HomeScreen() {
                   marginBottom: '0.75rem'
                 }}
                 onClick={() => {
-                  // Navigate to Islemler page and auto-open this specific deal
-                  setSelectedTransactionCode(d.islemKodu);
-                  setCurrentPage('islemler');
+                  // Find the sale from transactions and show detail modal right here
+                  const saleTransaction = transactions.find(t => {
+                    const txId = extractTransactionId(t.aciklama, t.id, 'satis');
+                    return txId === d.islemKodu && t.islem_tipi === 'satis';
+                  });
+                  if (saleTransaction) {
+                    setSaleDetail({ show: true, sale: saleTransaction });
+                  } else {
+                    alert(`İşlem Detayı bulunamadı\n\nİşlem Kodu: ${d.islemKodu}\nMüşteri: ${d.musteri}\nTeslim: ${d.teslimGunu}`);
+                  }
                 }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
