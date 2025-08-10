@@ -346,6 +346,10 @@ def telegram_webhook_api():
 def telegram_webhook_handler():
     """Main telegram webhook handler with comprehensive error handling"""
     try:
+        # Basic test - just return success
+        return jsonify({'status': 'webhook_test_ok', 'timestamp': str(datetime.now())}), 200
+        
+        # Rest of the code commented out for testing:
         # Verify secret header
         secret = request.headers.get('X-Telegram-Bot-Api-Secret-Token', '')
         if TELEGRAM_SECRET_TOKEN and secret != TELEGRAM_SECRET_TOKEN:
