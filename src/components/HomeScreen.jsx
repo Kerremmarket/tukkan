@@ -10,6 +10,7 @@ import { API_ENDPOINTS } from '../config/api.js';
 
 function HomeScreen() {
   const [currentPage, setCurrentPage] = useState('home');
+  const [selectedTransactionCode, setSelectedTransactionCode] = useState(null);
   const [posts, setPosts] = useState([]);
   const [overduePayments, setOverduePayments] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
@@ -474,7 +475,14 @@ function HomeScreen() {
   }
 
   if (currentPage === 'islemler') {
-    return <Islemler onBackToHome={() => setCurrentPage('home')} onNavigate={setCurrentPage} />;
+    return <Islemler 
+      onBackToHome={() => {
+        setCurrentPage('home');
+        setSelectedTransactionCode(null);
+      }} 
+      onNavigate={setCurrentPage}
+      autoOpenTransactionCode={selectedTransactionCode}
+    />;
   }
 
   if (currentPage === 'yonetici') {
@@ -1001,7 +1009,8 @@ function HomeScreen() {
                   marginBottom: '0.75rem'
                 }}
                 onClick={() => {
-                  // Navigate to Islemler page to show deal details
+                  // Navigate to Islemler page and auto-open this specific deal
+                  setSelectedTransactionCode(d.islemKodu);
                   setCurrentPage('islemler');
                 }}
                 >
