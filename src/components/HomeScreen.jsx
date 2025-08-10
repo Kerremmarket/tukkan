@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import SalePhotos from './SalePhotos.jsx';
 import UrunSatis from './UrunSatis';
 import UrunAlis from './UrunAlis';
 import Envanter from './Envanter';
@@ -1041,12 +1042,7 @@ function HomeScreen() {
                       <div>Mail Order: {p.isMail ? 'Evet' : 'Hayır'}</div>
                     </div>
                   </div>
-                  <div style={{ background: '#1a1a1a', border: '1px solid #444', borderRadius: '6px', padding: '0.75rem', textAlign: 'center' }}>
-                    <div style={{ marginBottom: '0.5rem', fontWeight: '600' }}>Görsel</div>
-                    <div style={{ height: '160px', background: '#333', border: '1px dashed #555', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888' }}>
-                      [Görsel yer tutucu]
-                    </div>
-                  </div>
+                  <SalePhotos saleId={selectedPayment.transaction_id} />
                 </div>
               );
             })()}
