@@ -448,13 +448,25 @@ def telegram_webhook():
     
     except Exception as e:
         # Log error and return 200 to prevent Telegram from retrying
-        print(f"Telegram webhook error: {str(e)}")
+        import traceback
+        error_msg = f"Telegram webhook error: {str(e)}\n{traceback.format_exc()}"
+        print(error_msg)
         return jsonify({'status': 'error', 'message': str(e)}), 200
 
 # Alternate path under /api to avoid static-file conflicts on some hosts
 @app.route('/api/webhook/telegram', methods=['POST'])
 def telegram_webhook_api():
-    return telegram_webhook()
+    try:
+        return telegram_webhook()
+    except Exception as e:
+        import traceback
+        print(f"API webhook error: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({'status': 'error', 'message': str(e)}), 200
+
+# Simple test endpoint
+@app.route('/api/test', methods=['GET', 'POST'])
+def test_endpoint():
+    return jsonify({'status': 'ok', 'message': 'test works'}), 200
 
 @app.route('/api/acik-borclar', methods=['GET'])
 def get_acik_borclar():
