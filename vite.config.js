@@ -23,6 +23,7 @@ export default defineConfig({
       'localhost',
       '.railway.app',
       '.up.railway.app'
-    ]
+    ],
+    proxy: undefined // Disable proxy in preview mode (production)
   }
 })
