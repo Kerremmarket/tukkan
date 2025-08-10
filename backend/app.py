@@ -327,7 +327,7 @@ def telegram_webhook():
         return jsonify({'error': 'forbidden'}), 403
 
     try:
-        update = request.get_json(force=True)
+        update = request.get_json(silent=True) or {}
     except Exception:
         return jsonify({'status': 'ignored'}), 200
 
