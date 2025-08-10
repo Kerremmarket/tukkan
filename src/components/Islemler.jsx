@@ -498,7 +498,7 @@ function Islemler({ onBackToHome, onNavigate }) {
                     </div>
                   </div>
                   <ErrorBoundary>
-                    <SalePhotos saleId={selectedIslem.id} />
+                    <SalePhotos saleId={s.id} />
                   </ErrorBoundary>
                 </div>
               );
