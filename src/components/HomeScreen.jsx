@@ -42,6 +42,7 @@ function HomeScreen() {
     try {
       const raw = localStorage.getItem('tukkan-ready-deliveries');
       const arr = raw ? JSON.parse(raw) : [];
+      console.log('Ready deliveries from localStorage:', arr); // Debug log
       return new Set(arr);
     } catch { return new Set(); }
   };
@@ -84,6 +85,10 @@ function HomeScreen() {
           ready: readySet.has(s.id)
         };
       }).filter(d => d.teslimGunu); // only those with delivery
+      
+      // Clean up stale ready statuses
+      clearStaleReadyStatuses(mapped.map(d => d.id));
+      
       setDeliveries(mapped);
     } catch {
       setDeliveries([]);
@@ -95,6 +100,25 @@ function HomeScreen() {
     setObj.add(id);
     saveReadySet(setObj);
     setDeliveries(prev => prev.map(d => d.id === id ? { ...d, ready: true } : d));
+  };
+
+  const clearStaleReadyStatuses = (currentDeliveryIds) => {
+    const readySet = getReadySet();
+    const validIds = new Set(currentDeliveryIds);
+    let hasStale = false;
+    
+    // Remove any ready IDs that don't exist in current deliveries
+    for (const id of readySet) {
+      if (!validIds.has(id)) {
+        readySet.delete(id);
+        hasStale = true;
+      }
+    }
+    
+    if (hasStale) {
+      console.log('Clearing stale ready statuses. Updated ready set:', Array.from(readySet));
+      saveReadySet(readySet);
+    }
   };
 
   
@@ -927,6 +951,27 @@ function HomeScreen() {
               <option value="customer">Müşteri Adına Göre</option>
               <option value="ready">Hazır Durumuna Göre</option>
             </select>
+            {isAdmin && (
+              <button
+                onClick={() => {
+                  localStorage.removeItem('tukkan-ready-deliveries');
+                  loadDeliveries();
+                  alert('Hazır teslimat durumları temizlendi.');
+                }}
+                style={{
+                  padding: '0.5rem 1rem',
+                  borderRadius: '4px',
+                  border: '1px solid #ff6b6b',
+                  backgroundColor: 'transparent',
+                  color: '#ff6b6b',
+                  fontSize: '0.8rem',
+                  cursor: 'pointer'
+                }}
+                title="Yanlış hazır durumlarını temizle"
+              >
+                Durumları Temizle
+              </button>
+            )}
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto', color: '#ccc' }}>
@@ -956,16 +1001,8 @@ function HomeScreen() {
                   marginBottom: '0.75rem'
                 }}
                 onClick={() => {
-                  // Find the sale from transactions based on the transaction code
-                  const saleTransaction = transactions.find(t => {
-                    const txId = extractTransactionId(t.aciklama, t.id, 'satis');
-                    return txId === d.islemKodu && t.islem_tipi === 'satis';
-                  });
-                  if (saleTransaction) {
-                    setSaleDetail({ show: true, sale: saleTransaction });
-                  } else {
-                    alert(`İşlem Detayı\n\nİşlem Kodu: ${d.islemKodu}\nMüşteri: ${d.musteri}\nTeslim: ${d.teslimGunu}`);
-                  }
+                  // Navigate to Islemler page to show deal details
+                  setCurrentPage('islemler');
                 }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
