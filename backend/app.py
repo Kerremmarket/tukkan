@@ -15,10 +15,18 @@ try:
 except ImportError:
     pass  # dotenv not available, will use system env vars
 
-# Set up Flask to serve static files from the dist directory
-static_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'dist')
-app = Flask(__name__, static_folder=static_folder, static_url_path='')
+# Set up Flask app
+app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
+
+# Set up static files serving if dist folder exists
+try:
+    static_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'dist')
+    if os.path.exists(static_folder):
+        app.static_folder = static_folder
+        app.static_url_path = ''
+except Exception:
+    pass  # Skip static serving if there's an issue
 
 # Database configuration
 DATABASE_PATH = os.path.join(os.path.dirname(__file__), 'tukkan.db')
